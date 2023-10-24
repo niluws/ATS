@@ -1,3 +1,4 @@
+import uuid
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
@@ -54,9 +55,16 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_superuser = models.BooleanField(default=False, )
     date_joined = models.DateTimeField(default=timezone.now)
     last_login = models.DateTimeField(blank=True, null=True)
+    active_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True,blank=True, null=True)
+
     objects = CustomUserManager()
 
     USERNAME_FIELD = 'email'
+
+    def save(self, *args, **kwargs):
+        if not self.active_code:
+            self.active_code = uuid.uuid4()
+        super().save(*args, **kwargs)
 
 
 class Profile(models.Model):

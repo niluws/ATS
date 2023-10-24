@@ -3,6 +3,7 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 from django.utils import timezone
+from job.models import Job,Role
 
 
 class CustomUserManager(BaseUserManager):
@@ -29,21 +30,6 @@ class CustomUserManager(BaseUserManager):
             raise ValueError("Superuser must have is_superuser=True.")
 
         return self._create_user(email, password, **extra_fields)
-
-
-class Role(models.Model):
-    title = models.CharField(max_length=150)
-
-    def __str__(self):
-        return self.title
-
-
-class Job(models.Model):
-    title = models.CharField(max_length=150)
-    join_date = models.DateTimeField(default=timezone.now)
-
-    def __str__(self):
-        return self.title
 
 
 class User(AbstractBaseUser, PermissionsMixin):

@@ -3,7 +3,7 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 from django.utils import timezone
-from job.models import Job,Role
+from job.models import Job, Role
 
 
 class CustomUserManager(BaseUserManager):
@@ -60,8 +60,15 @@ class Profile(models.Model):
         ("MASTERS", "Master's Degree"),
         ("DOCTORATE", "Doctorate"),
     )
+    DEPARTMENT_CHOICES = (
+        ("HR", "HR"),
+        ("ML", "ML"),
+        ("VOLLABOR", "Vollabor"),
+        ("VISERA", "Visera"),
+    )
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     job = models.OneToOneField(Job, on_delete=models.CASCADE, null=True, blank=True)
     role = models.OneToOneField(Role, on_delete=models.CASCADE, null=True, blank=True)
     education = models.CharField(max_length=9, choices=EDUCATION_CHOICES, default="", null=True, blank=True)
     experience = models.IntegerField(null=True, blank=True)
+    department = models.CharField(max_length=8, choices=DEPARTMENT_CHOICES, null=True, blank=True)

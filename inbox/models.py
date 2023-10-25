@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils import timezone
-
+from authentication.models import Profile
 from job.models import Job
 
 
@@ -48,6 +48,14 @@ class NewPositionModel(models.Model):
     hr_approval = models.BooleanField(null=True, blank=True)
     td_approval = models.BooleanField(null=True, blank=True)
     budget = models.BigIntegerField()
+
+    # def save(self, *args, **kwargs):
+    #     if self.hr_approval == True:
+    #         td_users = Profile.objects.filter(role__title='TD', department=self.department)
+    #         user_ids = [user.user.id for user in td_users]
+    #
+    #         Profile.assign = user_ids
+    #         self.save()
 
     class Meta:
         verbose_name = 'new position'

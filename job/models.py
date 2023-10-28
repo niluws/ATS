@@ -1,5 +1,4 @@
 from django.db import models
-from django.utils import timezone
 
 
 class Role(models.Model):
@@ -11,7 +10,7 @@ class Role(models.Model):
 
 class Job(models.Model):
     title = models.CharField(max_length=150)
-    join_date = models.DateTimeField(default=timezone.now)
+    join_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.title

@@ -1,6 +1,4 @@
 from rest_framework import serializers
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
-from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from .models import User, Profile
 
 
@@ -18,12 +16,9 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    username_field = 'email'
-
-
-class CustomTokenRefreshSerializer(TokenRefreshSerializer):
-    username_field = 'email'
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -32,15 +27,8 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class LogoutSerializer(serializers.Serializer):
-    refresh = serializers.CharField()
+class RefreshTokenSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField()
 
-    def validate(self, attr):
-        self.token = attr['refresh']
-        return attr
-
-    def save(self, **kwargs):
-        try:
-            RefreshToken(self.token).blacklist()
-        except TokenError:
-            self.fail('bad token')
+class OTPVerificationSerializer(serializers.Serializer):
+    otp = serializers.CharField(max_length=6)

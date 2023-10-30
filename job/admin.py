@@ -1,6 +1,7 @@
 from django.contrib import admin
-from .models import Job, JobSkill
+from .models import Job, JobSkill,Role
 
+admin.site.register(Role)
 
 class JobSkillInline(admin.TabularInline):
     model = JobSkill

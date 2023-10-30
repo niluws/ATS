@@ -2,7 +2,7 @@ from django.db import models
 from django.utils import timezone
 from authentication.models import Profile
 from job.models import Job
-
+from authentication.models import User
 
 class NewPositionModel(models.Model):
     CONTRACT_TYPE_CHOICES = (
@@ -48,14 +48,19 @@ class NewPositionModel(models.Model):
     hr_approval = models.BooleanField(null=True, blank=True)
     td_approval = models.BooleanField(null=True, blank=True)
     budget = models.BigIntegerField()
+    assigned_to_td = models.ForeignKey(User, on_delete=models.CASCADE,null=True, blank=True,related_name='assigned_to_td_set')
+    interviewer=models.ForeignKey(User, on_delete=models.CASCADE,null=True, blank=True,related_name='interviewer_set')
+    
+    def save(self, *args, **kwargs):
+        if self.hr_approval:
+            td_user = User.objects.filter(profile__role__title='TD', profile__department=self.department).first()
+            if td_user:
+                self.assigned_to_td = td_user
+        else:
+            self.assigned_to_td=None
+        
 
-    # def save(self, *args, **kwargs):
-    #     if self.hr_approval == True:
-    #         td_users = Profile.objects.filter(role__title='TD', department=self.department)
-    #         user_ids = [user.user.id for user in td_users]
-    #
-    #         Profile.assign = user_ids
-    #         self.save()
+        super(NewPositionModel, self).save(*args, **kwargs)
 
     class Meta:
         verbose_name = 'new position'

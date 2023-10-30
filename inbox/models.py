@@ -45,11 +45,11 @@ class NewPositionModel(models.Model):
     department = models.CharField(max_length=8, choices=DEPARTMENT_CHOICES)
     quantity = models.IntegerField()
     explanation = models.TextField(null=True, blank=True)
-    hr_approval = models.BooleanField(null=True, blank=True)
-    td_approval = models.BooleanField(null=True, blank=True)
+    hr_approval = models.BooleanField(default=False)
+    td_approval = models.BooleanField(default=False)
     budget = models.BigIntegerField()
     assigned_to_td = models.ForeignKey(User, on_delete=models.CASCADE,null=True, blank=True,related_name='assigned_to_td_set')
-    interviewer=models.ForeignKey(User, on_delete=models.CASCADE,null=True, blank=True,related_name='interviewer_set')
+    interviewer=models.ManyToManyField(User,null=True, blank=True)
     
     def save(self, *args, **kwargs):
         if self.hr_approval:

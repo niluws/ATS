@@ -50,6 +50,7 @@ class NewPositionModel(models.Model):
     budget = models.BigIntegerField()
     assigned_to_td = models.ForeignKey(User, on_delete=models.CASCADE,null=True, blank=True,related_name='assigned_to_td_set')
     interviewer=models.ManyToManyField(User,null=True, blank=True)
+    is_advertised = models.BooleanField(default=False)
     
     def save(self, *args, **kwargs):
         if self.hr_approval:

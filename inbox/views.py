@@ -1,11 +1,11 @@
 from rest_framework import generics
-from .serializers import NewPositionSerializer,HRApprovalSerializer,TDApprovalSerializer
+from .serializers import BasePositionSerializer,HRApprovalSerializer,TDApprovalSerializer
 from .models import NewPositionModel
 
 #implement permitions
 
 class NewPositionAPIView(generics.CreateAPIView):
-    serializer_class = NewPositionSerializer
+    serializer_class = BasePositionSerializer
     queryset = NewPositionModel.objects.all()
 
 
@@ -16,4 +16,4 @@ class HRApproval(generics.RetrieveUpdateAPIView):
 
 class TDApproval(generics.RetrieveUpdateAPIView):
     serializer_class = TDApprovalSerializer
-    queryset = NewPositionModel.objects.all()
+    queryset=NewPositionModel.objects.all()

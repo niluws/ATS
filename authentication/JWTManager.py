@@ -67,4 +67,11 @@ class AuthHandler:
         return self.decode_access_token(token)
 
     def auth_refresh_wrapper(self, token):
+        
         return self.decode_refresh_token(token)
+    
+    def get_user_from_auth_header(self,request):
+        auth_header = request.META.get('HTTP_AUTHORIZATION')
+
+        if auth_header:
+            return self.auth_access_wrapper(auth_header)

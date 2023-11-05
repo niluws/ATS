@@ -1,17 +1,17 @@
-import jwt,uuid,redis,os,logging,functools,sys
-from functools import wraps
+import jwt,uuid,redis,logging
 from datetime import datetime
+import logging.config
 from django.contrib.auth import authenticate
 from django.core.mail import EmailMessage
 from django.contrib.sites.shortcuts import get_current_site
-from rest_framework import generics,authentication,views
+from rest_framework import generics,views
 from rest_framework.response import Response
 
 from utils import config
-import logging.config
 from .models import User, Profile
-from .serializers import RegisterSerializer, ProfileSerializer,LoginSerializer,RefreshTokenSerializer,OTPVerificationSerializer
+from .serializers import RegisterSerializer, ProfileSerializer,LoginSerializer,RefreshTokenSerializer,UserSerializer,LogoutSerializer
 from . import JWTManager
+from . permissions import IsSuperuserOrHR
 
 
 logging.config.dictConfig(config.LOGGING)
@@ -36,7 +36,7 @@ def generate_and_send_otp(email,current_site):
     otp = str(uuid.uuid4())
     r = redis.Redis(host='localhost', port=6379, db=0)
     
-    r.setex(email, 100, otp)
+    r.setex(email, 500, otp)
     
     email_subject = 'Activate Account'
     email_message = f'Click the following link to activate your account:\n http://{current_site.domain}/auth/activate/{otp}'
@@ -53,11 +53,12 @@ class Register(generics.CreateAPIView):
     @log_user_activity('create account')
     def perform_create(self, serializer):
         
-        user = serializer.save()
-        user.profile = Profile.objects.create(user=user)
-        user.set_password(serializer.validated_data['password'])
-        user.save()
+        
         try:
+            user = serializer.save()
+            user.profile = Profile.objects.create(user=user)
+            user.set_password(serializer.validated_data['password'])
+            user.save()
             current_site = get_current_site(self.request)
             generate_and_send_otp(user.email,current_site) 
         except Exception as e:
@@ -80,6 +81,7 @@ class VerifyAccount(views.APIView):
                 if user:
                     user.is_active = True
                     user.save()
+                    r.delete(key)
                     return Response({'success': True, 'status': 200, 'message': 'Account activated successfully'})
                 else:
                     return Response({'success': False, 'status': 404, 'error': 'User not found for the provided email'})
@@ -117,18 +119,22 @@ class Login(generics.CreateAPIView):
 
 
 class Me(generics.RetrieveUpdateAPIView):
-    authentication_classes = (authentication.TokenAuthentication, )
     serializer_class = ProfileSerializer
     def get_object(self):
+        user = jwt_manager.get_user_from_auth_header(self.request)
+        profile=Profile.objects.get(user__email=user)
+        return profile
+    
+    def get(self, request, *args, **kwargs):
         
-        auth_header = self.request.META.get('HTTP_AUTHORIZATION') 
+        user = jwt_manager.get_user_from_auth_header(self.request)
+        if user:
+            profile=Profile.objects.get(user__email=user)
+            profile=ProfileSerializer(profile).data
+            return Response(profile)
+        else:
+            return Response({'success': False, 'status': 401, 'error': 'User is not authenticated'})
 
-        if auth_header:
-            auth_token = auth_header.split('Bearer ')[1] 
-            user = jwt_manager.auth_access_wrapper(auth_token)
-
-            if user:
-                return Profile.objects.get(user__email=user)
 
 class RefreshToken(generics.CreateAPIView):
     serializer_class=RefreshTokenSerializer
@@ -149,16 +155,31 @@ class RefreshToken(generics.CreateAPIView):
                 return Response({'success': False, 'status': 401, 'error': 'You are not authorized'})
         except jwt.ExpiredSignatureError:
             return Response({'success': False, 'status': 401, 'error': 'Signature has expired'})
-        except Exception : #TODO manage exceptions
+        except Exception :
             return Response({'success': False, 'status': 401, 'error': 'Invalid token'})
        
 
 class Logout(generics.GenericAPIView):
-    authentication_classes = (authentication.TokenAuthentication, )
+    serializer_class = LogoutSerializer
 
     @log_user_activity('logged out')
     def get(self,request):
-            user = request.user
-            return Response({'success': True, 'status': 200, 'message': 'You logout successfuly'})
+            user = jwt_manager.get_user_from_auth_header(self.request)
+
+            if user:
+        
+                return Response({'success': True, 'status': 200, 'message': 'You logout successfuly'})
+            else:
+                return Response({'success': False, 'status': 401, 'error': 'User is not authenticated'})
 
 
+class UserListView(generics.ListAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsSuperuserOrHR]
+
+class ProfileAPIView(generics.RetrieveUpdateAPIView):
+    queryset=Profile.objects.all()
+    serializer_class = ProfileSerializer
+    permission_classes = [IsSuperuserOrHR]
+    lookup_field='pk'

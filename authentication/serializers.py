@@ -11,7 +11,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs['password'] != attrs['confirm_password']:
-            raise serializers.ValidationError({"confirm_password": "Password fields didn't match."})
+            raise serializers.ValidationError({"confirm_password": "Password fields is not match."})
         attrs.pop('confirm_password')
         return attrs
 
@@ -21,14 +21,20 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
 
-class ProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Profile
-        fields = '__all__'
+class LogoutSerializer(serializers.Serializer):
+    pass
 
 
 class RefreshTokenSerializer(serializers.Serializer):
     refresh_token = serializers.CharField()
 
-class OTPVerificationSerializer(serializers.Serializer):
-    otp = serializers.CharField(max_length=6)
+
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = '__all__'
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['profile','first_name','last_name','email']

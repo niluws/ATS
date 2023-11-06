@@ -22,8 +22,8 @@ class AuthHandler:
         return jwt.encode(to_encode,self.SECRET_KEY,algorithm=self.ALGORITHM)
     
     def encode_login_token(self, data:dict):
-        access_token=self.encode_token(data)
-        refresh_token=self.encode_token(data)
+        access_token=self.encode_token(data).decode('utf-8')
+        refresh_token=self.encode_token(data).decode('utf-8')
 
         login_token = dict(
 			access_token=f"{access_token}",

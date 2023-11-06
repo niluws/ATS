@@ -4,9 +4,10 @@ from rest_framework import generics,filters
 from rest_framework.response import Response
 from .serializers import ExcelFileSerializer,CandidateSerializer
 from .models import ExceFileModel,CandidateModel
-
+from authentication.permissions import IsSuperuserOrHR
 class Upload_Resume(generics.CreateAPIView):
     serializer_class=ExcelFileSerializer
+    permission_classes=[IsSuperuserOrHR]
 
     def post(self, request, *args, **kwargs):
         uploaded_file = request.FILES.get('file')
@@ -52,3 +53,4 @@ class CandidateList(generics.ListAPIView):
     filter_backends = [filters.SearchFilter,filters.OrderingFilter]
     search_fields = ['job']
     ordering_fields = ['request_date']
+    permission_classes=[IsSuperuserOrHR]

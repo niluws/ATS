@@ -4,7 +4,7 @@ import logging.config
 from django.contrib.auth import authenticate
 from django.core.mail import EmailMessage
 from django.contrib.sites.shortcuts import get_current_site
-from rest_framework import generics,views
+from rest_framework import generics,views,permissions
 from rest_framework.response import Response
 
 from utils import config
@@ -91,6 +91,7 @@ class VerifyAccount(views.APIView):
 
 class Login(generics.CreateAPIView):
     serializer_class = LoginSerializer
+    permission_classes=[permissions.AllowAny]
     def get_user_email(request):
         email = request.data.get('email')
         if email:

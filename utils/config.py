@@ -10,9 +10,10 @@ load_dotenv(env_file)
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Static URL
+# Static
 STATIC_URL = os.getenv('STATIC_URL')
-
+MEDIA_URL=os.getenv('MEDIA_URL')
+MEDIA_ROOT=os.path.join(BASE_DIR,os.getenv('MEDIA_ROOT'))
 # Secret Key
 SECRET_KEY = os.getenv('SECRET_KEY')
 

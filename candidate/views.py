@@ -1,9 +1,10 @@
 import os
 from openpyxl import load_workbook
-from rest_framework import generics
+from rest_framework import generics,filters
 from rest_framework.response import Response
-from .serializers import ExcelFileSerializer
+from .serializers import ExcelFileSerializer,CandidateSerializer
 from .models import ExceFileModel,CandidateModel
+
 class Upload_Resume(generics.CreateAPIView):
     serializer_class=ExcelFileSerializer
 
@@ -44,3 +45,10 @@ class Upload_Resume(generics.CreateAPIView):
             
         else:
             return Response({'message': 'No file uploaded'})
+
+class CandidateList(generics.ListAPIView):
+    queryset=CandidateModel.objects.all()
+    serializer_class=CandidateSerializer
+    filter_backends = [filters.SearchFilter,filters.OrderingFilter]
+    search_fields = ['job']
+    ordering_fields = ['request_date']

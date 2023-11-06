@@ -25,7 +25,6 @@ urlpatterns = [
 
     path("admin/", admin.site.urls),
     path("auth/", include('authentication.urls',namespace='authentication')),
-    path("inbox/", include('inbox.urls',namespace='inbox')),
     path("job/", include('job.urls',namespace='job')),
 
 ]

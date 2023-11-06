@@ -5,9 +5,12 @@ from . import views
 app_name = 'job'
 
 router = DefaultRouter()
-router.register('', views.JobViewSet)
+router.register('list', views.JobViewSet)
+router.register('new_request', views.NewPositionViewSet,basename="new_postion")
 
 urlpatterns = [
     path('', include(router.urls)),
-    
+    path("hr_approve/<int:pk>", views.HRApproval.as_view(), name="hr_approve"),
+    path("td_approve/<int:pk>", views.TDApproval.as_view(), name="td_approve"),
+
 ]

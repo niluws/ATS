@@ -19,7 +19,7 @@ INSTALLED_APPS = [
     # ====Apps==== #
     'authentication',
     'job',
-    'inbox',
+    'candidate',
 ]
 
 MIDDLEWARE = [

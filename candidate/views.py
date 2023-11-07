@@ -1,10 +1,14 @@
-import os
+import os,requests
+from bs4 import BeautifulSoup
 from openpyxl import load_workbook
 from rest_framework import generics,filters
 from rest_framework.response import Response
 from .serializers import ExcelFileSerializer,CandidateSerializer
 from .models import ExceFileModel,CandidateModel
 from authentication.permissions import IsSuperuserOrHR
+
+
+    
 class UploadExcelAPIView(generics.CreateAPIView):
     serializer_class=ExcelFileSerializer
     permission_classes=[IsSuperuserOrHR]
@@ -24,25 +28,32 @@ class UploadExcelAPIView(generics.CreateAPIView):
 
             for row in ws.iter_rows(min_col=2,min_row=2):
                 email=CandidateModel.objects.filter(email=row[3].value).first()
+                hyperlink = row[5].hyperlink
+
 
                 if email:
                     continue
                 else:
-                    candidate = CandidateModel(
-                            name=row[1].value,
-                            job=row[0].value,
-                            phone_number=row[2].value,
-                            email=row[3].value,
-                            request_date=row[4].value,
-                            link=str(row[5].hyperlink.target)
-                        )
-                
-                    candidate.save()
-                    os.remove(file_path)
-                    
-                    return Response({"message": "Data uploaded successfully"})
+                    if hyperlink is not None:
+                        response = requests.get(hyperlink.target)
+                        online_resume = BeautifulSoup(response.text, 'html.parser')
+                        download_link = online_resume.find('a', {'class': 'btn btn-default'})['href']
+
+                        print(download_link)
+                        candidate = CandidateModel(
+                                name=row[1].value,
+                                job=row[0].value,
+                                phone_number=row[2].value,
+                                email=row[3].value,
+                                request_date=row[4].value,
+                                link=hyperlink.target
+                            )
+                        candidate.save()
+                        
+            
             os.remove(file_path)
-            return Response({"message": "Data already exist"})
+            return Response({"message": "Data uploaded successfully"})
+
             
         else:
             return Response({'message': 'No file uploaded'})

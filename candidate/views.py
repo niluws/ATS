@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from .serializers import ExcelFileSerializer,CandidateSerializer
 from .models import ExceFileModel,CandidateModel
 from authentication.permissions import IsSuperuserOrHR
-class Upload_Resume(generics.CreateAPIView):
+class UploadExcelAPIView(generics.CreateAPIView):
     serializer_class=ExcelFileSerializer
     permission_classes=[IsSuperuserOrHR]
 
@@ -47,7 +47,8 @@ class Upload_Resume(generics.CreateAPIView):
         else:
             return Response({'message': 'No file uploaded'})
 
-class CandidateList(generics.ListAPIView):
+
+class CandidateListAPIView(generics.ListAPIView):
     queryset=CandidateModel.objects.all()
     serializer_class=CandidateSerializer
     filter_backends = [filters.SearchFilter,filters.OrderingFilter]

@@ -22,6 +22,7 @@ jwt_manager = JWTManager.AuthHandler()
 def log_user_activity(activity):
     def decorator(view_func):
         def wrapper(request, *args, **kwargs):
+            print(request)
             logger = logging.getLogger('user_activity')
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             logger.info(f'{timestamp} - User {activity}')
@@ -47,7 +48,7 @@ def generate_and_send_otp(email,current_site):
 
 
 
-class Register(generics.CreateAPIView):
+class RegisterAPIView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
     @log_user_activity('create account')
@@ -66,7 +67,7 @@ class Register(generics.CreateAPIView):
 
 
 
-class VerifyAccount(views.APIView):
+class VerifyAccountAPIView(views.APIView):
     def get(self, request, otp_code):
         r = redis.Redis(host='localhost', port=6379, db=0)
 
@@ -89,13 +90,9 @@ class VerifyAccount(views.APIView):
         return Response({'success': False, 'status': 404, 'error': 'Invalid OTP'})
 
 
-class Login(generics.CreateAPIView):
+class LoginAPIView(generics.CreateAPIView):
     serializer_class = LoginSerializer
     permission_classes=[permissions.AllowAny]
-    def get_user_email(request):
-        email = request.data.get('email')
-        if email:
-            return email
         
     @log_user_activity('logged in')
     def create(self, request, *args, **kwargs):
@@ -119,7 +116,7 @@ class Login(generics.CreateAPIView):
         
 
 
-class Me(generics.RetrieveUpdateAPIView):
+class MeAPIView(generics.RetrieveUpdateAPIView):
     serializer_class = ProfileSerializer
     def get_object(self):
         user = jwt_manager.get_user_from_auth_header(self.request)
@@ -137,7 +134,7 @@ class Me(generics.RetrieveUpdateAPIView):
             return Response({'success': False, 'status': 401, 'error': 'User is not authenticated'})
 
 
-class RefreshToken(generics.CreateAPIView):
+class RefreshTokenAPIView(generics.CreateAPIView):
     serializer_class=RefreshTokenSerializer
 
     def create(self, request):
@@ -160,7 +157,7 @@ class RefreshToken(generics.CreateAPIView):
             return Response({'success': False, 'status': 401, 'error': 'Invalid token'})
        
 
-class Logout(generics.GenericAPIView):
+class LogoutAPIView(generics.GenericAPIView):
     serializer_class = LogoutSerializer
 
     @log_user_activity('logged out')

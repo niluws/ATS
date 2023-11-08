@@ -1,6 +1,7 @@
-import os,requests
+import os,requests,uuid
 from bs4 import BeautifulSoup
 from openpyxl import load_workbook
+from django.core.files.base import ContentFile
 from rest_framework import generics,filters
 from rest_framework.response import Response
 from .serializers import ExcelFileSerializer,CandidateSerializer
@@ -21,38 +22,39 @@ class UploadExcelAPIView(generics.CreateAPIView):
             excel_file.save()
             file_path = excel_file.file.path
 
-            wb = load_workbook(file_path)
+            workbook = load_workbook(file_path)
 
-            ws = wb.active
-            
+            worksheet = workbook.active
+            user_exist_count=0
 
-            for row in ws.iter_rows(min_col=2,min_row=2):
-                email=CandidateModel.objects.filter(email=row[3].value).first()
+            for row in worksheet.iter_rows(min_col=2,min_row=2):
+                user=CandidateModel.objects.filter(email=row[3].value).first()
                 hyperlink = row[5].hyperlink
 
-
-                if email:
+                if user:
+                    user_exist_count += 1
                     continue
                 else:
                     if hyperlink is not None:
                         response = requests.get(hyperlink.target)
                         online_resume = BeautifulSoup(response.text, 'html.parser')
-                        download_link = online_resume.find('a', {'class': 'btn btn-default'})['href']
+                        url = online_resume.find('a', {'class': 'btn btn-default'})['href']
 
-                        print(download_link)
+                        response = requests.get(url)
+                        
                         candidate = CandidateModel(
                                 name=row[1].value,
                                 job=row[0].value,
                                 phone_number=row[2].value,
                                 email=row[3].value,
                                 request_date=row[4].value,
-                                link=hyperlink.target
+                                resume= ContentFile(response.content, name=f"{uuid.uuid4()}.pdf"),
                             )
                         candidate.save()
-                        
-            
+
+                    
             os.remove(file_path)
-            return Response({"message": "Data uploaded successfully"})
+            return Response({"message": f"Data uploaded successfully. {user_exist_count} users already exist."})
 
             
         else:

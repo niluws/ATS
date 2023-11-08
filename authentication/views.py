@@ -8,10 +8,11 @@ from rest_framework import generics,views,permissions
 from rest_framework.response import Response
 
 from utils import config
-from .models import User, Profile
-from .serializers import RegisterSerializer, ProfileSerializer,LoginSerializer,RefreshTokenSerializer,UserSerializer,LogoutSerializer
+from .models import User
+from user.models import Profile
+from .serializers import RegisterSerializer,LoginSerializer,RefreshTokenSerializer,LogoutSerializer
+from user.serializers import ProfileSerializer
 from . import JWTManager
-from . permissions import IsSuperuserOrHR
 
 
 logging.config.dictConfig(config.LOGGING)
@@ -98,21 +99,24 @@ class LoginAPIView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         email = request.data.get('email')
         password = request.data.get('password')
+        user=User.objects.filter(email=email).first()
 
         if not email or not password:
             return Response({'success': False, 'status': 400, 'error': 'Email and password are required'})
-        
-        user = authenticate(request, email=email, password=password)
-        
-        if user:
-            login_token = jwt_manager.encode_login_token(user.email)
-            message={
-                'message':'You login successfuly',
-                'data':login_token
-            }
-            return Response({'success': True, 'status': 200, 'message': message})
-        else:
-            return Response({'success': False, 'status': 401, 'error': 'Authentication failed'})
+        if user.is_active:
+            user = authenticate(request, email=email, password=password)
+
+            if user:
+                login_token = jwt_manager.encode_login_token(user.email)
+                message={
+                    'message':'You login successfuly',
+                    'data':login_token
+                }
+                return Response({'success': True, 'status': 200, 'message': message})
+            else:
+                return Response({'success': False, 'status': 401, 'error': 'Authentication failed'})
+        else:return Response({'success': False, 'status': 401, 'error': 'Chack your email and verify your account'})
+
         
 
 
@@ -171,13 +175,3 @@ class LogoutAPIView(generics.GenericAPIView):
                 return Response({'success': False, 'status': 401, 'error': 'User is not authenticated'})
 
 
-class UserListView(generics.ListAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [IsSuperuserOrHR]
-
-class ProfileAPIView(generics.RetrieveUpdateAPIView):
-    queryset=Profile.objects.all()
-    serializer_class = ProfileSerializer
-    permission_classes = [IsSuperuserOrHR]
-    lookup_field='pk'

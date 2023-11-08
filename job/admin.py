@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Job, JobSkill,Role,NewPositionModel
+from .models import Job, JobRequirement,Role,NewPositionModel,Requirement
 
 
 @admin.register(NewPositionModel)
@@ -10,11 +10,12 @@ class UserAdmin(admin.ModelAdmin):
 
 admin.site.register(Role)
 
-class JobSkillInline(admin.TabularInline):
-    model = JobSkill
+admin.site.register(Requirement)
+class JobRequirementInline(admin.TabularInline):
+    model = JobRequirement
     extra = 0
 
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
-    inlines = (JobSkillInline,)
+    inlines = (JobRequirementInline,)

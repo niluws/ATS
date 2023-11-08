@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     'authentication',
     'job',
     'candidate',
+    'user',
 ]
 
 MIDDLEWARE = [

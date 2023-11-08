@@ -1,9 +1,7 @@
 from rest_framework import viewsets,generics
-from .serializers import JobSerializer, BasePositionSerializer,HRApprovalSerializer,TDApprovalSerializer
-from .models import Job
-from authentication.permissions import IsSuperuserOrHR
-from .models import NewPositionModel
 from authentication.permissions import IsSuperuserOrHR,IsSuperuserOrTD
+from .serializers import JobSerializer, BasePositionSerializer,HRApprovalSerializer,TDApprovalSerializer,JobRequirementSerializer
+from .models import Job,NewPositionModel,JobRequirement
 
 class NewPositionViewSet(viewsets.ModelViewSet):
     serializer_class = BasePositionSerializer
@@ -26,3 +24,6 @@ class JobViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.all() 
     permission_classes=[IsSuperuserOrHR]
 
+class JobRequirementViewSet(viewsets.ModelViewSet):
+    queryset = JobRequirement.objects.all()
+    serializer_class = JobRequirementSerializer

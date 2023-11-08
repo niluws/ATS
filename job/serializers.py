@@ -1,9 +1,8 @@
 from rest_framework import serializers
-from .models import Job,NewPositionModel
-from rest_framework import serializers
-
+from .models import Job,NewPositionModel,Requirement,JobRequirement
 
 class BasePositionSerializer(serializers.ModelSerializer):
+    position_title=serializers.StringRelatedField()
     class Meta:
         model = NewPositionModel
         fields = ['position_title', 'contract_type', 'reason', 'education_level', 'experience_level', 'department', 'quantity', 'budget']
@@ -25,3 +24,20 @@ class JobSerializer(serializers.ModelSerializer):
         model = Job
         fields = '__all__'
 
+class RequirementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Requirement
+        fields = '__all__'
+
+class JobRequirementSerializer(serializers.ModelSerializer):
+    requirement = RequirementSerializer()
+    
+    class Meta:
+        model = JobRequirement
+        fields = '__all__'
+        
+    def create(self, validated_data):
+        requirement_data = validated_data.pop('requirement')
+        requirement_instance, created = Requirement.objects.get_or_create(**requirement_data)
+        job_requirement = JobRequirement.objects.create(requirement=requirement_instance, **validated_data)
+        return job_requirement

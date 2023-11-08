@@ -1,8 +1,6 @@
 from django.db import models
-from django.db import models
 from django.utils import timezone
-from django.conf import settings
-
+from authentication.models import User
 
 class Role(models.Model):
     title = models.CharField(max_length=150)
@@ -19,16 +17,18 @@ class Job(models.Model):
         return self.title
 
 
-class Skill(models.Model):
-    title = models.CharField(max_length=150)
+class Requirement(models.Model):
+    en_title = models.CharField(max_length=150)
+    fa_title=models.CharField(max_length=150)
+    score=models.IntegerField()
 
     def __str__(self):
         return self.title
 
 
-class JobSkill(models.Model):
+class JobRequirement(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE)
-    skill = models.ForeignKey(Skill, on_delete=models.CASCADE)
+    requirement = models.ForeignKey(Requirement, on_delete=models.CASCADE)
 
 
 class NewPositionModel(models.Model):
@@ -75,8 +75,8 @@ class NewPositionModel(models.Model):
     hr_approval = models.BooleanField(default=False)
     td_approval = models.BooleanField(default=False)
     budget = models.BigIntegerField()
-    assigned_to_td = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,null=True, blank=True,related_name='assigned_to_td_set')
-    interviewer=models.ManyToManyField(settings.AUTH_USER_MODEL,null=True, blank=True)
+    assigned_to_td = models.ForeignKey(User, on_delete=models.CASCADE,null=True, blank=True,related_name='assigned_to_td_set')
+    interviewer=models.ManyToManyField(User,null=True, blank=True)
     is_advertised = models.BooleanField(default=False)
     
     def save(self, *args, **kwargs):

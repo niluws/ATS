@@ -25,17 +25,17 @@ class UploadExcelAPIView(generics.CreateAPIView):
             workbook = load_workbook(file_path)
 
             worksheet = workbook.active
-            user_exist_count=0
+            new_user_count=0
 
             for row in worksheet.iter_rows(min_col=2,min_row=2):
                 user=CandidateModel.objects.filter(email=row[3].value).first()
                 hyperlink = row[5].hyperlink
 
                 if user:
-                    user_exist_count += 1
                     continue
                 else:
                     if hyperlink is not None:
+                        new_user_count += 1
                         response = requests.get(hyperlink.target)
                         online_resume = BeautifulSoup(response.text, 'html.parser')
                         url = online_resume.find('a', {'class': 'btn btn-default'})['href']
@@ -54,7 +54,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
 
                     
             os.remove(file_path)
-            return Response({"message": f"Data uploaded successfully. {user_exist_count} users already exist."})
+            return Response({"message": f"Data uploaded successfully. {new_user_count} new users."})
 
             
         else:

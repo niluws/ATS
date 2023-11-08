@@ -27,3 +27,4 @@ class JobViewSet(viewsets.ModelViewSet):
 class JobRequirementViewSet(viewsets.ModelViewSet):
     queryset = JobRequirement.objects.all()
     serializer_class = JobRequirementSerializer
+    permission_classes=[IsSuperuserOrTD]

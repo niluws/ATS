@@ -1,65 +1,73 @@
 import os,requests,uuid
 from bs4 import BeautifulSoup
+# from PyPDF2 import PdfFileReader
 from openpyxl import load_workbook
 from django.core.files.base import ContentFile
 from rest_framework import generics,filters
 from rest_framework.response import Response
 from .serializers import ExcelFileSerializer,CandidateSerializer
-from .models import ExceFileModel,CandidateModel
+from .models import ExcelFileModel,CandidateModel
 from authentication.permissions import IsSuperuserOrHR
+from django.db import transaction
 
-
-    
 class UploadExcelAPIView(generics.CreateAPIView):
-    serializer_class=ExcelFileSerializer
+    serializer_class = ExcelFileSerializer
     permission_classes=[IsSuperuserOrHR]
 
     def post(self, request, *args, **kwargs):
         uploaded_file = request.FILES.get('file')
-        
-        if uploaded_file:
-            excel_file = ExceFileModel(file=uploaded_file)
-            excel_file.save()
-            file_path = excel_file.file.path
 
+        if not uploaded_file:
+            return Response({'success': False, 'status': 400, 'error': 'No file uploaded'})
+
+        excel_file = ExcelFileModel(file=uploaded_file)
+        excel_file.save()
+        file_path = excel_file.file.path
+
+        try:
             workbook = load_workbook(file_path)
-
             worksheet = workbook.active
-            new_user_count=0
 
-            for row in worksheet.iter_rows(min_col=2,min_row=2):
-                user=CandidateModel.objects.filter(email=row[3].value).first()
-                hyperlink = row[5].hyperlink
+            with transaction.atomic():
+                user_emails = set()
 
-                if user:
-                    continue
-                else:
-                    if hyperlink is not None:
-                        new_user_count += 1
-                        response = requests.get(hyperlink.target)
-                        online_resume = BeautifulSoup(response.text, 'html.parser')
-                        url = online_resume.find('a', {'class': 'btn btn-default'})['href']
+                for row in worksheet.iter_rows(min_col=2, min_row=2):
+                    user_email = row[3].value
 
-                        response = requests.get(url)
-                        
-                        candidate = CandidateModel(
-                                name=row[1].value,
-                                job=row[0].value,
-                                phone_number=row[2].value,
-                                email=row[3].value,
-                                request_date=row[4].value,
-                                resume= ContentFile(response.content, name=f"{uuid.uuid4()}.pdf"),
-                            )
-                        candidate.save()
+                    if user_email not in user_emails:
+                        user_emails.add(user_email)
+                        existing_candidate = CandidateModel.objects.filter(email=user_email).exists()
 
-                    
+                        if not existing_candidate:
+                            hyperlink = row[5].hyperlink
+
+                            if hyperlink is not None:
+                                response = requests.get(hyperlink.target)
+                                online_resume = BeautifulSoup(response.text, 'html.parser')
+
+                                try:
+                                    url = online_resume.find('a', {'class': 'btn btn-default'})['href']
+                                    resume_response = requests.get(url)
+
+                                    new_candidate = CandidateModel(
+                                        name=row[1].value,
+                                        job=row[0].value,
+                                        phone_number=row[2].value,
+                                        email=user_email,
+                                        request_date=row[4].value,
+                                        resume=ContentFile(resume_response.content, name=f"{uuid.uuid4()}.pdf"),
+                                    )
+                                    new_candidate.save()
+                                except (KeyError, requests.RequestException):
+                                    os.remove(file_path)
+                                    return Response({'success': False, 'status': 422, 'error': 'Cannot access URL'})
+
+        except Exception as e:
+            return Response({'success': False, 'status': 500, 'error': f'Error processing file: {str(e)}'})
+        finally:
             os.remove(file_path)
-            return Response({"message": f"Data uploaded successfully. {new_user_count} new users."})
 
-            
-        else:
-            return Response({'message': 'No file uploaded'})
-
+        return Response({'success': True, 'status': 200, 'message': 'Data uploaded successfully.'})
 
 class CandidateListAPIView(generics.ListAPIView):
     queryset=CandidateModel.objects.all()

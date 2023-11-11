@@ -1,9 +1,9 @@
 from rest_framework import serializers
-from .models import ExceFileModel,CandidateModel
+from .models import ExcelFileModel,CandidateModel
 
 class ExcelFileSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ExceFileModel
+        model = ExcelFileModel
         fields = ['file']
 
 class CandidateSerializer(serializers.ModelSerializer):

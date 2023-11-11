@@ -12,6 +12,15 @@ class CandidateModel(models.Model):
     request_date= models.CharField(max_length=15)
     create_at=models.DateTimeField(auto_now_add=True)
     update_at=models.DateTimeField(auto_now=True)
+    last_company=models.CharField(max_length=150,null=True,blank=True)
+    education_level=models.CharField(max_length=150,null=True,blank=True)
+    province=models.CharField(max_length=150,null=True,blank=True)
+    location=models.CharField(max_length=150,null=True,blank=True)
+    marital=models.CharField(max_length=150,null=True,blank=True)
+    birthdate=models.IntegerField(null=True,blank=True)
+    gender=models.CharField(max_length=150,null=True,blank=True)
+    military_service_status=models.CharField(max_length=150,null=True,blank=True)
+    job_status=models.CharField(max_length=150,null=True,blank=True)
 
 class Question(models.Model):
     text = models.CharField(max_length=150)
@@ -21,14 +30,3 @@ class InterviewerScore(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     score = models.IntegerField()
 
-class JobinjaProfile(models.Model):
-    basic_information=models.OneToOneField(CandidateModel,on_delete=models.CASCADE)
-    job = models.CharField(max_length=150,null=True,blank=True)
-    last_company=models.CharField(max_length=150,null=True,blank=True)
-    education_level=models.CharField(max_length=150,null=True,blank=True)
-    province=models.CharField(max_length=150,null=True,blank=True)
-    location=models.CharField(max_length=150,null=True,blank=True)
-    marital=models.CharField(max_length=150,null=True,blank=True)
-    birthdate=models.IntegerField(null=True,blank=True)
-    gender=models.CharField(max_length=150,null=True,blank=True)
-    military_service_status=models.CharField(max_length=150,null=True,blank=True)

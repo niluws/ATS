@@ -1,13 +1,14 @@
-import os,requests,uuid
+import os,requests,uuid,re
 from bs4 import BeautifulSoup
 # from PyPDF2 import PdfFileReader
 from openpyxl import load_workbook
 from django.core.files.base import ContentFile
 from rest_framework import generics,filters
 from rest_framework.response import Response
+from authentication.permissions import IsSuperuserOrHR
 from .serializers import ExcelFileSerializer,CandidateSerializer
 from .models import ExcelFileModel,CandidateModel
-from authentication.permissions import IsSuperuserOrHR
+
 
 class UploadExcelAPIView(generics.CreateAPIView):
     serializer_class = ExcelFileSerializer
@@ -40,22 +41,29 @@ class UploadExcelAPIView(generics.CreateAPIView):
                         hyperlink = row[5].hyperlink
 
                         if hyperlink is not None:
-                            response = requests.get(hyperlink.target)
-                            online_resume = BeautifulSoup(response.text, 'html.parser')
-
                             try:
-                                url = online_resume.find('a', {'class': 'btn btn-default'})['href']
+                                response = requests.get(hyperlink.target)
+                                soup = BeautifulSoup(response.text, 'html.parser')
+                                url = soup.find(lambda tag: tag.name == 'a' and 'دانلود' in tag.get_text(strip=True))['href']
                                 resume_response = requests.get(url)
-
+                            
                                 new_candidate = CandidateModel(
                                     name=row[1].value,
                                     job=row[0].value,
                                     phone_number=row[2].value,
                                     email=user_email,
                                     request_date=row[4].value,
-                                    resume=ContentFile(resume_response.content, name=f"{uuid.uuid4()}.pdf"),
-                                )
-                                new_candidate.save()
+                                    resume=ContentFile(resume_response.content, name=f"{row[0].value}/{row[1].value + row[2].value}.pdf"),
+                                    job_status=soup.find('label', text=re.compile('وضعیت اشتغال')).find_next_sibling('span').get_text(strip=True),
+                                    last_company=re.sub(r'\s+', ' ', soup.find('label', text=re.compile('آخرین')).find_next_sibling('span').get_text(strip=True).strip()),                                    education_level=soup.find('label', text=re.compile('تحصیلی')).find_next_sibling('span').get_text(strip=True),
+                                    province=soup.find('label', text=re.compile('استان')).find_next_sibling('span').get_text(strip=True),
+                                    location=soup.find('label', text=re.compile('آدرس محل')).find_next_sibling('span').get_text(strip=True),
+                                    marital=soup.find('label', text=re.compile('تاهل')).find_next_sibling('span').get_text(strip=True),
+                                    birthdate=soup.find('label', text=re.compile('سال تولد')).find_next_sibling('span').get_text(strip=True),
+                                    gender=soup.find('label', text=re.compile('جنسیت')).find_next_sibling('span').get_text(strip=True),
+                                    military_service_status=soup.find('label', text=re.compile('وضعیت خدمت')).find_next_sibling('span').get_text(strip=True),
+                                )                                                     
+                                new_candidate.save()                        
                             except (KeyError, requests.RequestException):
                                 os.remove(file_path)
                                 return Response({'success': False, 'status': 422, 'error': 'Cannot access URL'})
@@ -65,8 +73,8 @@ class UploadExcelAPIView(generics.CreateAPIView):
         finally:
             os.remove(file_path)
 
-        return Response({'success': True, 'status': 200, 'message': 'Data uploaded successfully.'})
-
+            return Response({'success': True, 'status': 200, 'message': 'Data uploaded successfully.'})
+    
 class CandidateListAPIView(generics.ListAPIView):
     queryset=CandidateModel.objects.all()
     serializer_class=CandidateSerializer

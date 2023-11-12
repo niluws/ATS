@@ -1,7 +1,9 @@
 from django.db import models
-
+from django.contrib.postgres.fields import ArrayField
 class ExcelFileModel(models.Model):
     file = models.FileField(upload_to='excel/')
+
+
 class CandidateModel(models.Model):
     name = models.CharField(max_length=150)
     job = models.CharField(max_length=150)
@@ -21,6 +23,28 @@ class CandidateModel(models.Model):
     gender=models.CharField(max_length=150,null=True,blank=True)
     military_service_status=models.CharField(max_length=150,null=True,blank=True)
     job_status=models.CharField(max_length=150,null=True,blank=True)
+    skills= ArrayField(models.CharField(max_length=150), null=True, blank=True)
+    experiences=ArrayField(models.CharField(max_length=150), null=True, blank=True)
+    languages=ArrayField(models.CharField(max_length=150), null=True, blank=True)
+    about=models.TextField(null=True, blank=True)
+
+
+class PreferencesModel(models.Model):
+    candidate=models.OneToOneField(CandidateModel,on_delete=models.CASCADE)
+    proviences=ArrayField(models.CharField(max_length=150), null=True, blank=True)
+    job_category=ArrayField(models.CharField(max_length=150), null=True, blank=True)
+    job_level=models.CharField(max_length=150, null=True, blank=True)
+    contracts_type=ArrayField(models.CharField(max_length=150), null=True, blank=True)
+    salary=models.CharField(max_length=150, null=True, blank=True)
+    benefits=ArrayField(models.CharField(max_length=150), null=True, blank=True)
+
+
+class EducationModel(models.Model):
+    candidate=models.ForeignKey(CandidateModel,on_delete=models.CASCADE)
+    level=models.CharField(max_length=150, null=True, blank=True)
+    major=models.CharField(max_length=150, null=True, blank=True)
+    university=models.CharField(max_length=150, null=True, blank=True)
+    duration=models.CharField(max_length=150, null=True, blank=True)
 
 class Question(models.Model):
     text = models.CharField(max_length=150)

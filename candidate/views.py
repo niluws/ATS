@@ -1,4 +1,4 @@
-import os,requests,uuid,re
+import os,requests,re,random
 from bs4 import BeautifulSoup
 # from PyPDF2 import PdfFileReader
 from openpyxl import load_workbook
@@ -6,9 +6,9 @@ from django.core.files.base import ContentFile
 from rest_framework import generics,filters
 from rest_framework.response import Response
 from authentication.permissions import IsSuperuserOrHR
-from .serializers import ExcelFileSerializer,CandidateSerializer
+from .serializers import ExcelFileSerializer,CandidateSerializer,ScoreSerializer
 from .models import ExcelFileModel,CandidateModel,EducationModel,PreferencesModel
-
+from job.models import Requirement
 
 class UploadExcelAPIView(generics.CreateAPIView):
     serializer_class = ExcelFileSerializer
@@ -23,24 +23,25 @@ class UploadExcelAPIView(generics.CreateAPIView):
                     level=education_text[0].strip(),
                     major=education_text[1].strip(),
                     university=education.find_next('div', class_='font-size-base').find('span').get_text(strip=True),
-                    duration=re.sub(r'\s+', '', education.find_next('div', class_='font-size-base').find('span', class_='mr-3').text),
+                    duration=re.sub(r'\s+', ' ', education.find_next('div', class_='font-size-base').find('span', class_='mr-3').text),
                 )
             else: None
             new_education.save()
             
     def save_preferences(self, soup, candidate_id):
-        output_dict = {}
+        output_dict = {}   
         for preference in soup.select('div.card-header:-soup-contains("ترجیحات") + div.card-body div.list-group-item label.d-block'):
             next_sibling = preference.find_next_sibling('div', class_='font-size-2xl vertical-align-middle color-grey-light-1')
             values = next_sibling.find_all('label', class_='font-size-base color-grey-dark-2 mh-1')
-            key = re.sub(r'\s+', ' ', preference.get_text(strip=True).replace('\u200c', '').strip())
-            value = [val.text.replace('\u200c', '').split() for val in values]
+            key = re.sub(r'\s+', ' ', preference.get_text(strip=True).replace('\u200c', ' ').strip())
+            value = [re.sub(r'\s+', ' ',val.get_text(strip=True).replace('\u200c', ' ').replace('\n', '')) for val in values]
+            # value = value = [, v.strip()) for v in value]
             output_dict[key] = value
 
         new_preference = PreferencesModel(
             candidate_id=candidate_id,
-            proviences=output_dict.get('استانهای مورد نظر برای کار:'),
-            job_category=output_dict.get('دستهبندی شغلی و زمینه کاری:'),
+            proviences=output_dict.get('استان های مورد نظر برای کار:'),
+            job_category=output_dict.get('دسته بندی شغلی و زمینه کاری:'),
             job_level=output_dict.get('سطح ارشدیت در زمینه فعالیت:'),
             contracts_type=output_dict.get('نوع قراردادهای قابل قبول:'),
             salary=output_dict.get('حقوق مورد نظر:'),
@@ -60,7 +61,9 @@ class UploadExcelAPIView(generics.CreateAPIView):
         
     def extract_data(self, soup, label_text):
         label = soup.find('label', text=re.compile(label_text))
-        return label.find_next_sibling('span').get_text(strip=True) if label else None
+        if label:
+            return re.sub(r'\s+',' ',label.find_next_sibling('span').get_text(strip=True))
+        else:None
 
     def post(self, request, *args, **kwargs):
         uploaded_file = request.FILES.get('file')
@@ -76,8 +79,8 @@ class UploadExcelAPIView(generics.CreateAPIView):
         try:
             workbook = load_workbook(file_path)
             worksheet = workbook.active
+            new_user_count=0
             
-
             for row in worksheet.iter_rows(min_col=2, min_row=2):
                 user_email = row[3].value
 
@@ -85,9 +88,8 @@ class UploadExcelAPIView(generics.CreateAPIView):
                     continue
                     
                 exist_candidate = CandidateModel.objects.filter(email=user_email).exists()
-
+                
                 if not exist_candidate:
-                    # continue
 
                     hyperlink = row[5].hyperlink
 
@@ -96,8 +98,8 @@ class UploadExcelAPIView(generics.CreateAPIView):
                         try:
                             response = requests.get(hyperlink.target)
                             soup = BeautifulSoup(response.text, 'html.parser')
-                            url = soup.find(lambda tag: tag.name == 'a' and 'دانلود' in tag.get_text(strip=True))['href']
-                            resume_response = requests.get(url)
+                            # url = soup.find(lambda tag: tag.name == 'a' and 'دانلود' in tag.get_text(strip=True))['href']
+                            # resume_response = requests.get(url)
 
 
                             new_candidate = CandidateModel(
@@ -106,7 +108,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
                                 phone_number=row[2].value,
                                 email=user_email,
                                 request_date=row[4].value,
-                                resume=ContentFile(resume_response.content, name=f"{row[0].value}/{row[1].value}_{row[2].value}.pdf") if resume_response else None,
+                                # resume=ContentFile(resume_response.content, name=f"{row[0].value}/{row[1].value}_{row[2].value}.pdf") if resume_response else None,
                                 job_status=self.extract_data(soup, 'وضعیت اشتغال'),
                                 last_company=self.extract_data(soup, 'شرکت'),
                                 education_level=self.extract_data(soup, 'تحصیلی'),
@@ -126,6 +128,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
                             new_candidate.save()
                             self.save_preferences(soup,new_candidate.pk)
                             self.save_education(soup, new_candidate.pk)
+                            new_user_count+=1
 
 
 
@@ -136,8 +139,55 @@ class UploadExcelAPIView(generics.CreateAPIView):
             return Response({'success': False, 'status': 500, 'error': f'Error processing file: {str(e)}'})
         finally:
             os.remove(file_path)
-            return Response({'success': True, 'status': 200, 'message': 'Data uploaded successfully.'})
+            return Response({'success': True, 'status': 200, 'message': f'{new_user_count} Data uploaded.'})
     
+class ScoreOnlineResume(generics.ListAPIView):
+    queryset = CandidateModel.objects.all()
+    serializer_class = ScoreSerializer
+
+    def get_object(self,candidate_id):
+        education_queryset=EducationModel.objects.filter(candidate_id=candidate_id)
+        return education_queryset
+    
+    def calculate_skill_score(self, candidate):
+        
+        requirement = Requirement.objects.all()
+        
+        education=self.get_object(candidate.id)
+        
+        total_score = 0
+
+        for req in requirement:
+            en=req.en_title
+            fa=req.fa_title
+            
+            for edu in education:
+                if en in edu.level or fa in edu.level or en in edu.major or fa in edu.major:
+                    total_score += req.score
+
+            for s in candidate.skills,candidate.languages,candidate.about:
+                if en.lower() in ''.join(s).lower() or fa in ''.join(s).lower():
+                    total_score += req.score
+
+
+        return total_score
+    
+    def get(self, request, *args, **kwargs):
+        candidates = self.get_queryset()
+        
+        for candidate in candidates:
+
+            skill_score = self.calculate_skill_score(candidate)
+            candidate.score = skill_score
+            candidate.save()
+        
+        serializer = ScoreSerializer(candidates, many=True)
+
+        
+        return Response(serializer.data, status=200)
+
+        
+
 class CandidateListAPIView(generics.ListAPIView):
     queryset=CandidateModel.objects.all()
     serializer_class=CandidateSerializer

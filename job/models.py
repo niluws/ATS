@@ -23,7 +23,7 @@ class Requirement(models.Model):
     score=models.IntegerField()
 
     def __str__(self):
-        return self.title
+        return self.en_title
 
 
 class JobRequirement(models.Model):

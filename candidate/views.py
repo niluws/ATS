@@ -1,5 +1,7 @@
 import os,requests,re,random
 from bs4 import BeautifulSoup
+from persiantools.jdatetime import JalaliDate
+from jdatetime import datetime as jdatetime
 # from PyPDF2 import PdfFileReader
 from openpyxl import load_workbook
 from django.core.files.base import ContentFile
@@ -7,7 +9,7 @@ from rest_framework import generics,filters
 from rest_framework.response import Response
 from authentication.permissions import IsSuperuserOrHR
 from .serializers import ExcelFileSerializer,CandidateSerializer,ScoreSerializer
-from .models import ExcelFileModel,CandidateModel,EducationModel,PreferencesModel
+from .models import ExcelFileModel,CandidateModel,EducationModel,PreferencesModel,ExperiencesModel
 from job.models import Requirement
 
 class UploadExcelAPIView(generics.CreateAPIView):
@@ -52,8 +54,29 @@ class UploadExcelAPIView(generics.CreateAPIView):
     def extract_languages(self, soup):
         return  [ re.sub(r'\s+',' ',language.find('label').get_text()) for language in soup.select('div.card-header:-soup-contains("زبان") + div.card-body div.list-group-item')] if soup.select('div.card-header:-soup-contains("زبان") + div.card-body div.list-group-item') else None
 
-    def extract_experiences(self, soup):
-        return  [label.get_text(strip=True) for label in soup.select('div.card-header:-soup-contains("سوابق شغلی") + div.card-body div.list-group-item label.d-block')] or None
+    def save_experiences(self, soup,candidate_id):
+        for experience in soup.select('div.card-header:-soup-contains("سوابق شغلی") + div.card-body div.list-group-item'):
+            title=experience.find('label').text
+            company=experience.find('span').text
+            start_at=re.sub(r'\s+',' ',experience.find('span',class_='mr-3').find('b').text)
+            end_at=re.sub(r'\s+',' ',experience.find('span',class_='mr-3').find_all('b')[-1].text.strip())
+
+            start_date = jdatetime.strptime(start_at, "%B %Y").date()
+            if end_at == "حالا":
+                end_date = jdatetime.now().date()
+            else:
+                end_date = jdatetime.strptime(end_at, "%B %Y").date()
+
+            
+            new_experience=ExperiencesModel(
+                candidate_id=candidate_id,
+                title=title or None,
+                company=company or None,
+                start_at=start_at or None,
+                end_at=end_at or None,
+                duration=(end_date - start_date).days
+            )
+            new_experience.save()
 
     def extract_skills(self, soup):
         return  [skill.get_text(strip=True) for skill in soup.select('div.card-header:-soup-contains("حرفه") + div.card-body div.font-size-2xl.vertical-align-middle.color-grey-light-1 label.font-size-base.color-grey-dark-2.mh-1')] if  soup.select('div.card-header:-soup-contains("حرفه") + div.card-body div.font-size-2xl.vertical-align-middle.color-grey-light-1 label.font-size-base.color-grey-dark-2.mh-1') else None
@@ -120,7 +143,6 @@ class UploadExcelAPIView(generics.CreateAPIView):
                                 military_service_status=self.extract_data(soup, 'وضعیت خدمت'),
                                 about=soup.find('p', class_='u-textJustify').get_text() if soup.find('p', class_='u-textJustify') else None,
                                 skills=self.extract_skills(soup),
-                                experiences=self.extract_experiences(soup),
                                 languages=self.extract_languages(soup),
                             )
 
@@ -128,6 +150,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
                             new_candidate.save()
                             self.save_preferences(soup,new_candidate.pk)
                             self.save_education(soup, new_candidate.pk)
+                            self.save_experiences(soup, new_candidate.pk)
                             new_user_count+=1
 
 
@@ -153,7 +176,8 @@ class ScoreOnlineResume(generics.ListAPIView):
         
         requirement = Requirement.objects.all()
         
-        education=self.get_object(candidate.id)     
+        education=self.get_object(candidate.id)  
+                
         total_score = 0
 
         for req in requirement:
@@ -163,7 +187,6 @@ class ScoreOnlineResume(generics.ListAPIView):
             for edu in education:                
                 if en in edu.level or fa in edu.level or en in edu.major or fa in edu.major:
                     total_score += req.score
-                    print(en)
                     
                     break
             
@@ -174,7 +197,6 @@ class ScoreOnlineResume(generics.ListAPIView):
 
                     if en.lower() in ''.join(skill).lower() or fa in ''.join(skill).lower():
                         total_score += req.score  
-                        print(en)
                         break
 
 
@@ -184,7 +206,6 @@ class ScoreOnlineResume(generics.ListAPIView):
         candidates = self.get_queryset()
         for candidate in candidates:
             skill_score = self.calculate_skill_score(candidate)
-            print(skill_score)
             candidate.score = skill_score
             candidate.save()
         

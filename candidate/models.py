@@ -24,10 +24,16 @@ class CandidateModel(models.Model):
     military_service_status=models.CharField(max_length=150,null=True,blank=True)
     job_status=models.CharField(max_length=150,null=True,blank=True)
     skills= ArrayField(models.CharField(max_length=150), null=True, blank=True)
-    experiences=ArrayField(models.CharField(max_length=150), null=True, blank=True)
     languages=ArrayField(models.CharField(max_length=150), null=True, blank=True)
     about=models.TextField(null=True, blank=True)
 
+class ExperiencesModel(models.Model):
+    candidate=models.ForeignKey(CandidateModel,on_delete=models.CASCADE)
+    title=models.CharField(max_length=150,null=True,blank=True)
+    company=models.CharField(max_length=150,null=True,blank=True)
+    start_at=models.CharField(max_length=150,null=True,blank=True)
+    end_at=models.CharField(max_length=150,null=True,blank=True)
+    duration=models.CharField(max_length=150,null=True,blank=True)
 
 class PreferencesModel(models.Model):
     candidate=models.OneToOneField(CandidateModel,on_delete=models.CASCADE)

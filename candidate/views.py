@@ -153,31 +153,38 @@ class ScoreOnlineResume(generics.ListAPIView):
         
         requirement = Requirement.objects.all()
         
-        education=self.get_object(candidate.id)
-        
+        education=self.get_object(candidate.id)     
         total_score = 0
 
         for req in requirement:
             en=req.en_title
             fa=req.fa_title
             
-            for edu in education:
+            for edu in education:                
                 if en in edu.level or fa in edu.level or en in edu.major or fa in edu.major:
                     total_score += req.score
+                    print(en)
+                    
+                    break
+            
+            for skill in candidate.languages,candidate.skills:
+                en=req.en_title
+                fa=req.fa_title
+                if skill is not None:
 
-            for s in candidate.skills,candidate.languages,candidate.about:
-                if en.lower() in ''.join(s).lower() or fa in ''.join(s).lower():
-                    total_score += req.score
+                    if en.lower() in ''.join(skill).lower() or fa in ''.join(skill).lower():
+                        total_score += req.score  
+                        print(en)
+                        break
 
 
         return total_score
     
     def get(self, request, *args, **kwargs):
         candidates = self.get_queryset()
-        
         for candidate in candidates:
-
             skill_score = self.calculate_skill_score(candidate)
+            print(skill_score)
             candidate.score = skill_score
             candidate.save()
         

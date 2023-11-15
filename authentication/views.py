@@ -1,7 +1,7 @@
 import jwt,uuid,redis,logging
+from functools import wraps
 from datetime import datetime
 import logging.config
-from django.contrib.auth import authenticate
 from django.core.mail import EmailMessage
 from django.contrib.sites.shortcuts import get_current_site
 from rest_framework import generics,views,permissions
@@ -15,23 +15,26 @@ from user.serializers import ProfileSerializer
 from . import JWTManager
 
 
-logging.config.dictConfig(config.LOGGING)
 
 
 jwt_manager = JWTManager.AuthHandler()
 
-def log_user_activity(activity):
-    def decorator(view_func):
-        def wrapper(request, *args, **kwargs):
-            print(request)
-            logger = logging.getLogger('user_activity')
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            logger.info(f'{timestamp} - User {activity}')
-            return view_func(request, *args, **kwargs)
+def log_user_activity(func):
 
-        return wrapper
+    @wraps(func)
+    def wrapper_func(self, request, *args, **kwargs):
 
-    return decorator
+        response=func(self, request, *args, **kwargs)
+        print(request.data)
+        logger = logging.getLogger('user_activity')
+        user = request.data.get('user_id')
+        message = request.data.get('message')
+        asctime=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        logger.info(f'{asctime} - INFO - user_id: {user} {message}')
+     
+        return response
+
+    return wrapper_func
 
 
 def generate_and_send_otp(email,current_site):
@@ -52,7 +55,7 @@ def generate_and_send_otp(email,current_site):
 class RegisterAPIView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
-    @log_user_activity('create account')
+    
     def perform_create(self, serializer):
         
         
@@ -61,10 +64,17 @@ class RegisterAPIView(generics.CreateAPIView):
             user.profile = Profile.objects.create(user=user)
             user.set_password(serializer.validated_data['password'])
             user.save()
+            self.request.data['message'] ='registered'
+            self.request.data['user_id'] =user.pk
+
             current_site = get_current_site(self.request)
             generate_and_send_otp(user.email,current_site) 
         except Exception as e:
             return Response({'success': False, 'status': 400, 'error': e})
+        
+    @log_user_activity
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
 
 
@@ -95,7 +105,7 @@ class LoginAPIView(generics.CreateAPIView):
     serializer_class = LoginSerializer
     permission_classes=[permissions.AllowAny]
         
-    @log_user_activity('logged in')
+    @log_user_activity
     def create(self, request, *args, **kwargs):
         email = request.data.get('email')
         password = request.data.get('password')
@@ -104,20 +114,22 @@ class LoginAPIView(generics.CreateAPIView):
         if not email or not password:
             return Response({'success': False, 'status': 400, 'error': 'Email and password are required'})
         if user.is_active:
-            user = authenticate(request, email=email, password=password)
 
             if user:
                 login_token = jwt_manager.encode_login_token(user.email)
+                request.data['user_id'] = user.pk
+                request.data['message'] = 'looged in'
+                
                 message={
                     'message':'You login successfuly',
-                    'data':login_token
+                    'data':login_token,
+                    
                 }
                 return Response({'success': True, 'status': 200, 'message': message})
             else:
                 return Response({'success': False, 'status': 401, 'error': 'Authentication failed'})
         else:return Response({'success': False, 'status': 401, 'error': 'Chack your email and verify your account'})
 
-        
 
 
 class MeAPIView(generics.RetrieveUpdateAPIView):
@@ -164,11 +176,14 @@ class RefreshTokenAPIView(generics.CreateAPIView):
 class LogoutAPIView(generics.GenericAPIView):
     serializer_class = LogoutSerializer
 
-    @log_user_activity('logged out')
+    @log_user_activity
     def get(self,request):
-            user = jwt_manager.get_user_from_auth_header(self.request)
-
-            if user:
+            auth =jwt_manager.get_user_from_auth_header(self.request)
+            user = User.objects.get(email=auth)
+ 
+            if auth:
+                request.data['user_id'] = user.id
+                request.data['message'] = 'logged out'
         
                 return Response({'success': True, 'status': 200, 'message': 'You logout successfuly'})
             else:

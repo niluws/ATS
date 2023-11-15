@@ -1,7 +1,5 @@
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
-class ExcelFileModel(models.Model):
-    file = models.FileField(upload_to='excel/')
 
 
 class CandidateModel(models.Model):

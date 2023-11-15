@@ -1,10 +1,8 @@
 from rest_framework import serializers
-from .models import ExcelFileModel,CandidateModel,EducationModel,PreferencesModel,ExperiencesModel
+from .models import CandidateModel,EducationModel,PreferencesModel,ExperiencesModel
 
-class ExcelFileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ExcelFileModel
-        fields = ['file']
+class ExcelFileSerializer(serializers.Serializer):
+    file=serializers.FileField()
 
 class CandidateSerializer(serializers.ModelSerializer):
     class Meta:

@@ -38,7 +38,7 @@ def generate_and_send_otp(email,current_site):
     otp = str(uuid.uuid4())
     r = redis.Redis(host='localhost', port=6379, db=0)
     
-    r.setex(email, 500, otp)
+    r.set(email, otp,ex=500)
     
     email_subject = 'Activate Account'
     email_message = f'Click the following link to activate your account:\n http://{current_site.domain}/auth/activate/{otp}'

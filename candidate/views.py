@@ -1,15 +1,15 @@
-import os,requests,re,random
+import os,requests,re
 from bs4 import BeautifulSoup
-from persiantools.jdatetime import JalaliDate
 from jdatetime import datetime as jdatetime
 # from PyPDF2 import PdfFileReader
 from openpyxl import load_workbook
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from rest_framework import generics,filters
 from rest_framework.response import Response
 from authentication.permissions import IsSuperuserOrHR
 from .serializers import ExcelFileSerializer,CandidateSerializer,ScoreSerializer
-from .models import ExcelFileModel,CandidateModel,EducationModel,PreferencesModel,ExperiencesModel
+from .models import CandidateModel,EducationModel,PreferencesModel,ExperiencesModel
 from job.models import Requirement
 
 class UploadExcelAPIView(generics.CreateAPIView):
@@ -37,7 +37,6 @@ class UploadExcelAPIView(generics.CreateAPIView):
             values = next_sibling.find_all('label', class_='font-size-base color-grey-dark-2 mh-1')
             key = re.sub(r'\s+', ' ', preference.get_text(strip=True).replace('\u200c', ' ').strip())
             value = [re.sub(r'\s+', ' ',val.get_text(strip=True).replace('\u200c', ' ').replace('\n', '')) for val in values]
-            # value = value = [, v.strip()) for v in value]
             output_dict[key] = value
 
         new_preference = PreferencesModel(
@@ -94,10 +93,8 @@ class UploadExcelAPIView(generics.CreateAPIView):
         if not uploaded_file:
             
             return Response({'success': False, 'status': 400, 'error': 'No file uploaded'})
-        
-        excel_file = ExcelFileModel(file=uploaded_file)
-        excel_file.save()
-        file_path = excel_file.file.path
+        file_name = default_storage.save(uploaded_file, uploaded_file)
+        file_path = default_storage.path(file_name)
 
         try:
             workbook = load_workbook(file_path)

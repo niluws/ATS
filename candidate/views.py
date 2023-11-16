@@ -1,7 +1,6 @@
 import os,requests,re
 from bs4 import BeautifulSoup
 from jdatetime import datetime as jdatetime
-# from PyPDF2 import PdfFileReader
 from openpyxl import load_workbook
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -14,7 +13,7 @@ from job.models import Requirement
 
 class UploadExcelAPIView(generics.CreateAPIView):
     serializer_class = ExcelFileSerializer
-    # permission_classes=[IsSuperuserOrHR]
+    permission_classes=[IsSuperuserOrHR]
 
     def save_education(self, soup, candidate_id):
         for education in soup.select('div.card-header:-soup-contains("تحصیلی") + div.card-body div.list-group-item label.d-block'):
@@ -51,7 +50,8 @@ class UploadExcelAPIView(generics.CreateAPIView):
         new_preference.save()
 
     def extract_languages(self, soup):
-        return  [ re.sub(r'\s+',' ',language.find('label').get_text()) for language in soup.select('div.card-header:-soup-contains("زبان") + div.card-body div.list-group-item')] if soup.select('div.card-header:-soup-contains("زبان") + div.card-body div.list-group-item') else None
+        language_element=soup.select('div.card-header:-soup-contains("زبان") + div.card-body div.list-group-item')
+        return  [ re.sub(r'\s+',' ',language.find('label').get_text()) for language in language_element] if language_element else None
 
     def save_experiences(self, soup,candidate_id):
         for experience in soup.select('div.card-header:-soup-contains("سوابق شغلی") + div.card-body div.list-group-item'):
@@ -78,7 +78,8 @@ class UploadExcelAPIView(generics.CreateAPIView):
             new_experience.save()
 
     def extract_skills(self, soup):
-        return  [skill.get_text(strip=True) for skill in soup.select('div.card-header:-soup-contains("حرفه") + div.card-body div.font-size-2xl.vertical-align-middle.color-grey-light-1 label.font-size-base.color-grey-dark-2.mh-1')] if  soup.select('div.card-header:-soup-contains("حرفه") + div.card-body div.font-size-2xl.vertical-align-middle.color-grey-light-1 label.font-size-base.color-grey-dark-2.mh-1') else None
+        skill_element= soup.select('div.card-header:-soup-contains("حرفه") + div.card-body div.font-size-2xl.vertical-align-middle.color-grey-light-1 label.font-size-base.color-grey-dark-2.mh-1')
+        return  [skill.get_text(strip=True) for skill in skill_element] if  skill_element else None
 
         
     def extract_data(self, soup, label_text):
@@ -118,8 +119,8 @@ class UploadExcelAPIView(generics.CreateAPIView):
                         try:
                             response = requests.get(hyperlink.target)
                             soup = BeautifulSoup(response.text, 'html.parser')
-                            # url = soup.find(lambda tag: tag.name == 'a' and 'دانلود' in tag.get_text(strip=True))['href']
-                            # resume_response = requests.get(url)
+                            url = soup.find(lambda tag: tag.name == 'a' and 'دانلود' in tag.get_text(strip=True))['href']
+                            resume_response = requests.get(url)
 
 
                             new_candidate = CandidateModel(
@@ -128,7 +129,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
                                 phone_number=row[2].value,
                                 email=user_email,
                                 request_date=row[4].value,
-                                # resume=ContentFile(resume_response.content, name=f"{row[0].value}/{row[1].value}_{row[2].value}.pdf") if resume_response else None,
+                                resume=ContentFile(resume_response.content, name=f"{row[0].value}/{row[1].value}_{row[2].value}.pdf") if resume_response else None,
                                 job_status=self.extract_data(soup, 'وضعیت اشتغال'),
                                 last_company=self.extract_data(soup, 'شرکت'),
                                 education_level=self.extract_data(soup, 'تحصیلی'),

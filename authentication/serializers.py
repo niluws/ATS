@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework.response import Response
 from .models import User
 
 
@@ -10,8 +11,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ['first_name', 'last_name', 'email', 'password', 'confirm_password']
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['confirm_password']:
-            raise serializers.ValidationError({"confirm_password": "Password fields is not match."})
         attrs.pop('confirm_password')
         return attrs
 

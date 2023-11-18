@@ -73,6 +73,7 @@ class RegisterAPIView(generics.CreateAPIView):
             user = serializer.save()
             user.set_password(serializer.validated_data['password'])
             user.save()
+            user.profile = Profile.objects.create(user=user)
             message={
                     'message':'You registered successfuly',
                     'data':serializer.data,
@@ -144,9 +145,9 @@ class ProfileAPIView(generics.RetrieveUpdateAPIView):
     serializer_class = ProfileSerializer
     def get_object(self):
         user = jwt_manager.get_user_from_auth_header(self.request)
-        if user:
-            profile=Profile.objects.get(user__email=user)
-            return profile
+        
+        profile=Profile.objects.get(user__email=user)
+        return profile
  
     
     def get(self, request, *args, **kwargs):

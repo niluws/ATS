@@ -18,8 +18,8 @@ class Job(models.Model):
 
 
 class Requirement(models.Model):
-    en_title = models.CharField(max_length=150)
-    fa_title=models.CharField(max_length=150)
+    en_title = models.CharField(max_length=150,unique=True)
+    fa_title=models.CharField(max_length=150,unique=True)
     score=models.IntegerField()
 
     def __str__(self):
@@ -87,7 +87,6 @@ class NewPositionModel(models.Model):
                 self.assigned_to_td = td_user
         else:
             self.assigned_to_td=None
-        
 
         super(NewPositionModel, self).save(*args, **kwargs)
 

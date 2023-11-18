@@ -21,3 +21,5 @@ class Profile(models.Model):
     experience = models.IntegerField(null=True, blank=True)
     department = models.CharField(max_length=8, choices=DEPARTMENT_CHOICES, null=True, blank=True)
 
+    class Meta:
+        unique_together = (("role", "department"),)

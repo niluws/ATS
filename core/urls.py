@@ -30,7 +30,7 @@ urlpatterns = [
    path("auth/", include('authentication.urls',namespace='authentication')),
    path("candidate/", include('candidate.urls',namespace='candidate')),
    path("job/", include('job.urls',namespace='job')),
-   path("user/", include('user.urls',namespace='user')),
+   path("users/", include('user.urls',namespace='user')),
 ]
 
 if settings.DEBUG:

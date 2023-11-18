@@ -2,7 +2,6 @@ from rest_framework import serializers
 from .models import Job,NewPositionModel,Requirement,JobRequirement
 
 class BasePositionSerializer(serializers.ModelSerializer):
-    position_title=serializers.StringRelatedField()
     class Meta:
         model = NewPositionModel
         fields = ['position_title', 'contract_type', 'reason', 'education_level', 'experience_level', 'department', 'quantity', 'budget']

@@ -4,12 +4,16 @@ from jdatetime import datetime as jdatetime
 from openpyxl import load_workbook
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.core.mail import EmailMessage
 from rest_framework import generics,filters
 from rest_framework.response import Response
+
 from authentication.permissions import IsSuperuserOrHR
+from job.models import Requirement
+from utils import config
 from .serializers import ExcelFileSerializer,CandidateSerializer,ScoreSerializer
 from .models import CandidateModel,EducationModel,PreferencesModel,ExperiencesModel
-from job.models import Requirement
+
 
 class UploadExcelAPIView(generics.CreateAPIView):
     serializer_class = ExcelFileSerializer
@@ -81,7 +85,6 @@ class UploadExcelAPIView(generics.CreateAPIView):
         skill_element= soup.select('div.card-header:-soup-contains("حرفه") + div.card-body div.font-size-2xl.vertical-align-middle.color-grey-light-1 label.font-size-base.color-grey-dark-2.mh-1')
         return  [skill.get_text(strip=True) for skill in skill_element] if  skill_element else None
 
-        
     def extract_data(self, soup, label_text):
         label = soup.find('label', text=re.compile(label_text))
         if label:
@@ -144,14 +147,11 @@ class UploadExcelAPIView(generics.CreateAPIView):
                                 languages=self.extract_languages(soup),
                             )
 
-
                             new_candidate.save()
                             self.save_preferences(soup,new_candidate.pk)
                             self.save_education(soup, new_candidate.pk)
                             self.save_experiences(soup, new_candidate.pk)
                             new_user_count+=1
-
-
 
                         except (KeyError, requests.RequestException):
                             os.remove(file_path)
@@ -161,7 +161,8 @@ class UploadExcelAPIView(generics.CreateAPIView):
         finally:
             os.remove(file_path)
             return Response({'success': True, 'status': 200, 'message': f'{new_user_count} Data uploaded.'})
-    
+
+
 class ScoreOnlineResume(generics.ListAPIView):
     queryset = CandidateModel.objects.all()
     serializer_class = ScoreSerializer
@@ -197,7 +198,6 @@ class ScoreOnlineResume(generics.ListAPIView):
                         total_score += req.score  
                         break
 
-
         return total_score
     
     def get(self, request, *args, **kwargs):
@@ -206,13 +206,19 @@ class ScoreOnlineResume(generics.ListAPIView):
             skill_score = self.calculate_skill_score(candidate)
             candidate.score = skill_score
             candidate.save()
-        
+            if candidate.score >= 2:
+                print('accepted')
+            #     EmailMessage(f'Interview Invitation - {candidate.job}', 'Scheduled Interview: [Date] at [Time]',
+            #                  config.EMAIL_HOST_USER, [candidate.email]).send()
+            else:
+                print('rejected')
+            #     EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
+            #                  config.EMAIL_HOST_USER, [candidate.email]).send()
+
         serializer = ScoreSerializer(candidates, many=True)
 
-        
         return Response(serializer.data, status=200)
 
-        
 
 class CandidateListAPIView(generics.ListAPIView):
     queryset=CandidateModel.objects.all()

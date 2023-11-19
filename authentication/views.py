@@ -43,7 +43,7 @@ def generate_and_send_otp(email, current_site):
 
         email_subject = 'Activate Account'
         email_message = f'Click the following link to activate your account:\n' \
-                        f' https://{current_site.domain}/auth/activate/{otp}'
+                        f' http://{current_site.domain}/auth/activate/{otp}'
 
         recipient_email = email
 

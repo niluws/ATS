@@ -38,3 +38,15 @@ class ScoreSerializer(serializers.ModelSerializer):
     class Meta:
         model = CandidateModel
         fields = '__all__'
+
+class CandidateUpdateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = CandidateModel
+        fields = ['name', 'job', 'email', 'phone_number',
+                   'province', 'location', 'marital','update_at',
+                    'birthdate', 'gender','resume']
+        read_only_fields = ['name', 'job', 'email', 'phone_number',
+                   'province', 'location', 'marital','update_at',
+                    'birthdate', 'gender']
+        

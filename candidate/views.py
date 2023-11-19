@@ -1,7 +1,12 @@
 import os,requests,re
 from bs4 import BeautifulSoup
 from jdatetime import datetime as jdatetime
+from jdatetime import datetime as jdatetime_datetime
+from jdatetime import date as jdatetime_date
+from jdatetime import timedelta as jdatetime_timedelta
 from openpyxl import load_workbook
+from django.contrib.sites.shortcuts import get_current_site
+from django_filters.rest_framework import DjangoFilterBackend
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.mail import EmailMessage
@@ -11,7 +16,7 @@ from rest_framework.response import Response
 from authentication.permissions import IsSuperuserOrHR
 from job.models import Requirement
 from utils import config
-from .serializers import ExcelFileSerializer,CandidateSerializer,ScoreSerializer
+from .serializers import ExcelFileSerializer,CandidateSerializer,ScoreSerializer,CandidateUpdateSerializer
 from .models import CandidateModel,EducationModel,PreferencesModel,ExperiencesModel
 
 
@@ -132,7 +137,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
                                 phone_number=row[2].value,
                                 email=user_email,
                                 request_date=row[4].value,
-                                resume=ContentFile(resume_response.content, name=f"{row[0].value}/{row[1].value}_{row[2].value}.pdf") if resume_response else None,
+                                resume=ContentFile(resume_response.content, name=f"{row[0].value}/{row[1].value}.pdf") if resume_response else None,
                                 job_status=self.extract_data(soup, 'وضعیت اشتغال'),
                                 last_company=self.extract_data(soup, 'شرکت'),
                                 education_level=self.extract_data(soup, 'تحصیلی'),
@@ -170,7 +175,7 @@ class ScoreOnlineResume(generics.ListAPIView):
     def get_object(self,candidate_id):
         education_queryset=EducationModel.objects.filter(candidate_id=candidate_id)
         return education_queryset
-    
+    #TODO just score to candidates who have no score
     def calculate_skill_score(self, candidate):
         
         requirement = Requirement.objects.all()
@@ -206,19 +211,19 @@ class ScoreOnlineResume(generics.ListAPIView):
             skill_score = self.calculate_skill_score(candidate)
             candidate.score = skill_score
             candidate.save()
-            if candidate.score >= 2:
-                print('accepted')
-            #     EmailMessage(f'Interview Invitation - {candidate.job}', 'Scheduled Interview: [Date] at [Time]',
-            #                  config.EMAIL_HOST_USER, [candidate.email]).send()
-            else:
-                print('rejected')
-            #     EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
-            #                  config.EMAIL_HOST_USER, [candidate.email]).send()
+            if candidate.score is None:
+                if candidate.score >= 2:
+                    print('accepted:Send Interview Invitation date')
+                #     EmailMessage(f'Interview Invitation - {candidate.job}', 'Scheduled Interview: [Date] at [Time]',
+                #                  config.EMAIL_HOST_USER, [candidate.email]).send()
+                else:
+                    print('rejected')
+                #     EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
+                #                  config.EMAIL_HOST_USER, [candidate.email]).send()
 
         serializer = ScoreSerializer(candidates, many=True)
 
         return Response(serializer.data, status=200)
-
 
 class CandidateListAPIView(generics.ListAPIView):
     queryset=CandidateModel.objects.all()
@@ -227,3 +232,48 @@ class CandidateListAPIView(generics.ListAPIView):
     search_fields = ['job']
     ordering_fields = ['request_date']
     permission_classes=[IsSuperuserOrHR]
+
+class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
+    queryset=CandidateModel.objects.all()
+    serializer_class=CandidateUpdateSerializer
+
+    def perform_update(self, serializer):
+        candidate = serializer.instance
+        
+        resume = serializer.validated_data.get('resume')
+        if resume:
+            jalali_update_date = jdatetime_datetime.fromgregorian(datetime=candidate.update_at)
+            formatted_update_date = jalali_update_date.strftime('%Y_%m_%d_%H_%M')
+         
+            file_path = f"{candidate.job}/{candidate.name}_{formatted_update_date}.pdf"
+
+            candidate.resume.save(file_path, resume, save=True)
+
+    
+    
+class OldCandidateInvitationAPIView(generics.ListAPIView):
+    queryset=CandidateModel.objects.all()
+    serializer_class=CandidateSerializer
+    filter_backends = (DjangoFilterBackend,)
+    filterset_fields = ('job', )
+
+    def get(self, request, *args, **kwargs):
+        job_param = request.GET.get('job', '')
+        candidates = CandidateModel.objects.filter(job=job_param)
+        current_site = get_current_site(self.request)
+        for candidate in candidates:
+            self.send_invitation_email(candidate, job_param,current_site,candidate.id)
+
+        return self.list(request, *args, **kwargs)
+    
+    def send_invitation_email(self, candidate, job_param,current_site,candidate_id):
+        print(f'Hello {candidate.name} Please consider updating your resume and applying for {job_param} position if you are interested Click on the following link to apply:http://{current_site.domain}/candidate/candidate_update/{candidate_id}',)
+        
+        # EmailMessage('Job Opportunity Update',
+        #             f'Hello {candidate.name} \n'/
+        #             f'Please consider updating your resume and applying for {job_param} position if you are interested.\n '\
+        #             'Click on the following link to apply:',
+        #             config.EMAIL_HOST_USER, [candidate.email]).send()
+
+
+

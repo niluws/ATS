@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CandidateModel,EducationModel,PreferencesModel,ExperiencesModel
+from .models import CandidateModel,EducationModel,PreferencesModel,ExperiencesModel,AppointmentModel
 
 class ExcelFileSerializer(serializers.Serializer):
     file=serializers.FileField()
@@ -49,4 +49,11 @@ class CandidateUpdateSerializer(serializers.ModelSerializer):
         read_only_fields = ['name', 'job', 'email', 'phone_number',
                    'province', 'location', 'marital','update_at',
                     'birthdate', 'gender']
-        
+
+
+class AppointmentSerializer(serializers.ModelSerializer):
+    # interview_time_jalali = serializers.ReadOnlyField(source='interview_time_jalali')
+    candidate=serializers.StringRelatedField()
+    class Meta:
+        model = AppointmentModel
+        fields = '__all__'

@@ -1,28 +1,83 @@
-import os,requests,re
+import os,requests,re,datetime,pytz
 from bs4 import BeautifulSoup
 from jdatetime import datetime as jdatetime
-from jdatetime import datetime as jdatetime_datetime
-from jdatetime import date as jdatetime_date
-from jdatetime import timedelta as jdatetime_timedelta
 from openpyxl import load_workbook
 from django.contrib.sites.shortcuts import get_current_site
 from django_filters.rest_framework import DjangoFilterBackend
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.mail import EmailMessage
-from rest_framework import generics,filters
+from django.utils import timezone
+from rest_framework import viewsets,generics,filters,serializers
 from rest_framework.response import Response
 
 from authentication.permissions import IsSuperuserOrHR
 from job.models import Requirement
 from utils import config
-from .serializers import ExcelFileSerializer,CandidateSerializer,ScoreSerializer,CandidateUpdateSerializer
-from .models import CandidateModel,EducationModel,PreferencesModel,ExperiencesModel
+from .serializers import ExcelFileSerializer,CandidateSerializer,ScoreSerializer,CandidateUpdateSerializer,AppointmentSerializer
+from .models import CandidateModel,EducationModel,PreferencesModel,ExperiencesModel,AppointmentModel
+
+def calculate_skill_score(candidate):
+        
+        requirement = Requirement.objects.all()
+        
+        education=EducationModel.objects.filter(candidate_id=candidate.id)  
+                
+        total_score = 0
+
+        for req in requirement:
+            en=req.en_title
+            fa=req.fa_title
+            
+            for edu in education:                
+                if en in edu.level or fa in edu.level or en in edu.major or fa in edu.major:
+                    total_score += req.score
+                    
+                    break
+            
+            for skill in candidate.languages,candidate.skills:
+                en=req.en_title
+                fa=req.fa_title
+                if skill is not None:
+
+                    if en.lower() in ''.join(skill).lower() or fa in ''.join(skill).lower():
+                        total_score += req.score  
+                        break
+
+        return total_score
+
+def schedule_interviews(candidate, interview_duration_hours):
+    last_appointment = AppointmentModel.objects.all().exclude(interview_end_time=None).order_by('-interview_end_time').first()
+    start_work_time = timezone.now().replace(hour=9, minute=0, second=0, microsecond=0)
+    current_date = timezone.now()
+
+    if last_appointment:
+        if current_date >= start_work_time:
+            if last_appointment.interview_end_time >= last_appointment.interview_end_time.replace(hour=12, minute=0, second=0, microsecond=0):
+                start_time = last_appointment.interview_end_time.replace(hour=9, minute=0, second=0, microsecond=0) + timezone.timedelta(days=1)
+                end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
+                AppointmentModel.objects.create(candidate_id=candidate.id,
+                                                interview_start_time=start_time,
+                                                interview_end_time=end_time)
+            else:
+                start_time = last_appointment.interview_end_time
+                end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
+                AppointmentModel.objects.create(candidate_id=candidate.id,
+                                                interview_start_time=start_time,
+                                                interview_end_time=end_time)
+
+    else:
+        start_time = timezone.now().replace(hour=9, minute=0, second=0, microsecond=0) + timezone.timedelta(days=1)
+        end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
+        AppointmentModel.objects.create(candidate_id=candidate.id,
+                                        interview_start_time=start_time,
+                                        interview_end_time=end_time)
+
 
 
 class UploadExcelAPIView(generics.CreateAPIView):
     serializer_class = ExcelFileSerializer
-    permission_classes=[IsSuperuserOrHR]
+    # permission_classes=[IsSuperuserOrHR]
 
     def save_education(self, soup, candidate_id):
         for education in soup.select('div.card-header:-soup-contains("تحصیلی") + div.card-body div.list-group-item label.d-block'):
@@ -127,8 +182,8 @@ class UploadExcelAPIView(generics.CreateAPIView):
                         try:
                             response = requests.get(hyperlink.target)
                             soup = BeautifulSoup(response.text, 'html.parser')
-                            url = soup.find(lambda tag: tag.name == 'a' and 'دانلود' in tag.get_text(strip=True))['href']
-                            resume_response = requests.get(url)
+                            # url = soup.find(lambda tag: tag.name == 'a' and 'دانلود' in tag.get_text(strip=True))['href']
+                            # resume_response = requests.get(url)
 
 
                             new_candidate = CandidateModel(
@@ -137,7 +192,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
                                 phone_number=row[2].value,
                                 email=user_email,
                                 request_date=row[4].value,
-                                resume=ContentFile(resume_response.content, name=f"{row[0].value}/{row[1].value}.pdf") if resume_response else None,
+                                # resume=ContentFile(resume_response.content, name=f"{row[0].value}/{row[1].value}.pdf") if resume_response else None,
                                 job_status=self.extract_data(soup, 'وضعیت اشتغال'),
                                 last_company=self.extract_data(soup, 'شرکت'),
                                 education_level=self.extract_data(soup, 'تحصیلی'),
@@ -151,11 +206,15 @@ class UploadExcelAPIView(generics.CreateAPIView):
                                 skills=self.extract_skills(soup),
                                 languages=self.extract_languages(soup),
                             )
-
-                            new_candidate.save()
-                            self.save_preferences(soup,new_candidate.pk)
-                            self.save_education(soup, new_candidate.pk)
-                            self.save_experiences(soup, new_candidate.pk)
+                            try:
+                                new_candidate.save()
+                                self.save_preferences(soup,new_candidate.pk)
+                                self.save_education(soup, new_candidate.pk)
+                                self.save_experiences(soup, new_candidate.pk)
+                                AppointmentModel.objects.create(candidate_id=new_candidate.pk)
+                            except Exception as e:
+                                return Response({'success': False, 'status': 500, 'error': f'Error saving candidate: {e}'})
+                            
                             new_user_count+=1
 
                         except (KeyError, requests.RequestException):
@@ -175,51 +234,34 @@ class ScoreOnlineResume(generics.ListAPIView):
     def get_object(self,candidate_id):
         education_queryset=EducationModel.objects.filter(candidate_id=candidate_id)
         return education_queryset
+    
     #TODO just score to candidates who have no score
-    def calculate_skill_score(self, candidate):
-        
-        requirement = Requirement.objects.all()
-        
-        education=self.get_object(candidate.id)  
-                
-        total_score = 0
-
-        for req in requirement:
-            en=req.en_title
-            fa=req.fa_title
-            
-            for edu in education:                
-                if en in edu.level or fa in edu.level or en in edu.major or fa in edu.major:
-                    total_score += req.score
-                    
-                    break
-            
-            for skill in candidate.languages,candidate.skills:
-                en=req.en_title
-                fa=req.fa_title
-                if skill is not None:
-
-                    if en.lower() in ''.join(skill).lower() or fa in ''.join(skill).lower():
-                        total_score += req.score  
-                        break
-
-        return total_score
+    
     
     def get(self, request, *args, **kwargs):
         candidates = self.get_queryset()
+        interview_duration_hours=1
         for candidate in candidates:
-            skill_score = self.calculate_skill_score(candidate)
-            candidate.score = skill_score
-            candidate.save()
-            if candidate.score is None:
-                if candidate.score >= 2:
-                    print('accepted:Send Interview Invitation date')
-                #     EmailMessage(f'Interview Invitation - {candidate.job}', 'Scheduled Interview: [Date] at [Time]',
-                #                  config.EMAIL_HOST_USER, [candidate.email]).send()
-                else:
-                    print('rejected')
-                #     EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
-                #                  config.EMAIL_HOST_USER, [candidate.email]).send()
+            if candidate.score is  None:
+                skill_score = calculate_skill_score(candidate)
+                candidate.score = skill_score
+                candidate.save()
+
+                if candidate.score :
+                    if candidate.score >= 2:
+                        print('accepted:Send Interview Invitation date')
+                        
+                        schedule_interviews(candidate,interview_duration_hours)
+                        
+                        # print(interview_time)
+                        # create_appointment(candidate, interview_time)
+                        # print(create_appointment)
+                    #     EmailMessage(f'Interview Invitation - {candidate.job}', 'Scheduled Interview: [Date] at [Time]',
+                    #                  config.EMAIL_HOST_USER, [candidate.email]).send()
+                    else:
+                        print('rejected')
+                    #     EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
+                    #                  config.EMAIL_HOST_USER, [candidate.email]).send()
 
         serializer = ScoreSerializer(candidates, many=True)
 
@@ -242,7 +284,7 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
         
         resume = serializer.validated_data.get('resume')
         if resume:
-            jalali_update_date = jdatetime_datetime.fromgregorian(datetime=candidate.update_at)
+            jalali_update_date = jdatetime.fromgregorian(datetime=candidate.update_at)
             formatted_update_date = jalali_update_date.strftime('%Y_%m_%d_%H_%M')
          
             file_path = f"{candidate.job}/{candidate.name}_{formatted_update_date}.pdf"
@@ -276,4 +318,47 @@ class OldCandidateInvitationAPIView(generics.ListAPIView):
         #             config.EMAIL_HOST_USER, [candidate.email]).send()
 
 
+class AppointmentViewSet(viewsets.ModelViewSet):
+    queryset = AppointmentModel.objects.all()
+    serializer_class = AppointmentSerializer
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            # set_appointment_for_candidate()
+            return self.get_paginated_response(serializer.data)
+            
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    # def set_appointment(self, candidate):
+    #     available_days = [5,6,0,1,2,3]  
+    #     start_time = datetime.time(9, 0)
+    #     end_time = datetime.time(13, 0)
+
+    #     current_datetime = timezone.now()
+    #     next_available_date = current_datetime.date()
+        
+    #     while next_available_date.weekday() not in available_days:
+    #         next_available_date += datetime.timedelta(days=1)
+    #     next_available_time = datetime.combine(next_available_date, start_time)
+    #     if current_datetime > next_available_time:
+    #         next_available_time += datetime.timedelta(days=7)
+    #     next_available_time = max(next_available_time, current_datetime)
+    #     next_available_time = min(next_available_time, datetime.combine(next_available_date, end_time))
+
+    #     return next_available_time
+    
+    # def perform_create(self, serializer):
+    #     candidates = CandidateModel.objects.all()
+
+    #     for candidate in candidates:
+    #         existing_appointment = AppointmentModel.objects.filter(candidate_id=candidate.id).first()
+    #         if not existing_appointment:
+    #             serializer.save(candidate=candidate, interview_start_time=timezone.now())
+    #         else:
+    #             raise serializers.ValidationError({'success': False, 'status': 409, 'error': 'Appointment already exists for this user'})
 

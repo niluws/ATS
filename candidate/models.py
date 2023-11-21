@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
-
+from jdatetime import datetime as jdatetime
 
 class CandidateModel(models.Model):
     name = models.CharField(max_length=150)
@@ -17,13 +17,17 @@ class CandidateModel(models.Model):
     province=models.CharField(max_length=150,null=True,blank=True)
     location=models.CharField(max_length=150,null=True,blank=True)
     marital=models.CharField(max_length=150,null=True,blank=True)
-    birthdate=models.IntegerField(null=True,blank=True)
+    birthdate=models.CharField(max_length=150,null=True,blank=True)
     gender=models.CharField(max_length=150,null=True,blank=True)
     military_service_status=models.CharField(max_length=150,null=True,blank=True)
     job_status=models.CharField(max_length=150,null=True,blank=True)
     skills= ArrayField(models.CharField(max_length=150), null=True, blank=True)
     languages=ArrayField(models.CharField(max_length=150), null=True, blank=True)
     about=models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+    
 
 class ExperiencesModel(models.Model):
     candidate=models.ForeignKey(CandidateModel,on_delete=models.CASCADE)
@@ -50,11 +54,21 @@ class EducationModel(models.Model):
     university=models.CharField(max_length=150, null=True, blank=True)
     duration=models.CharField(max_length=150, null=True, blank=True)
 
-class Question(models.Model):
+class QuestionModel(models.Model):
     text = models.CharField(max_length=150)
 
-class InterviewerScore(models.Model):
+class InterviewerScoreModel(models.Model):
     candidate = models.ForeignKey(CandidateModel, on_delete=models.CASCADE)
-    question = models.ForeignKey(Question, on_delete=models.CASCADE)
+    question = models.ForeignKey(QuestionModel, on_delete=models.CASCADE)
     score = models.IntegerField()
 
+
+class AppointmentModel(models.Model):
+    candidate = models.ForeignKey(CandidateModel, on_delete=models.CASCADE)
+    interview_start_time = models.DateTimeField( null=True, blank=True)
+    interview_end_time = models.DateTimeField( null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.candidate.name} - {self.interview_start_time}"
+    

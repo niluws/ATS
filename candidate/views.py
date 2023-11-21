@@ -252,10 +252,9 @@ class ScoreOnlineResume(generics.ListAPIView):
                         print('accepted:Send Interview Invitation date')
                         
                         schedule_interviews(candidate,interview_duration_hours)
-                        
-                        # print(interview_time)
-                        # create_appointment(candidate, interview_time)
-                        # print(create_appointment)
+                        candidate.invitation_count+=1
+                        candidate.save()
+                        print(candidate.invitation_count)
                     #     EmailMessage(f'Interview Invitation - {candidate.job}', 'Scheduled Interview: [Date] at [Time]',
                     #                  config.EMAIL_HOST_USER, [candidate.email]).send()
                     else:

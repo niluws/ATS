@@ -24,7 +24,7 @@ DEBUG = os.getenv('DEBUG')
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / 'templates']
+        "DIRS": os.getenv('dirs')
         ,
         "APP_DIRS": True,
         "OPTIONS": {

@@ -45,10 +45,10 @@ class CandidateUpdateSerializer(serializers.ModelSerializer):
         model = CandidateModel
         fields = ['name', 'job', 'email', 'phone_number',
                    'province', 'location', 'marital','update_at',
-                    'birthdate', 'gender','resume']
+                    'birthdate', 'gender','resume','invitation_count']
         read_only_fields = ['name', 'job', 'email', 'phone_number',
                    'province', 'location', 'marital','update_at',
-                    'birthdate', 'gender']
+                    'birthdate', 'gender','invitation_count']
 
 
 class AppointmentSerializer(serializers.ModelSerializer):

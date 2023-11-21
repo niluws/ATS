@@ -77,7 +77,9 @@ class RegisterAPIView(generics.CreateAPIView):
             user.profile = Profile.objects.create(user=user)
             message = {
                 'message': 'You registered successfuly',
-                'data': serializer.data,
+                'first_name': serializer.validated_data.get('first_name'),
+                'last_name': serializer.validated_data.get('last_name'),
+                'email': email,
 
             }
 

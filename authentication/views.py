@@ -14,7 +14,7 @@ from user.models import Profile
 from utils import config
 from . import JWTManager
 from .models import User
-from .serializers import RegisterSerializer, LoginSerializer, RefreshTokenSerializer, LogoutSerializer, MeSerializer
+from .serializers import RegisterSerializer, LoginSerializer, RefreshTokenSerializer, LogoutSerializer, MeSerializer,VerifyEmailSerializer
 
 jwt_manager = JWTManager.AuthHandler()
 
@@ -84,8 +84,6 @@ class RegisterAPIView(generics.CreateAPIView):
             self.request.data['message'] = 'registered'
             self.request.data['user_id'] = user.pk
 
-            current_site = get_current_site(self.request)
-            generate_and_send_otp(email, current_site)
 
             return Response({'success': True, 'status': 201, 'message': message})
         except Exception as e:
@@ -199,3 +197,21 @@ class VerifyAccountAPIView(views.APIView):
                 return Response({'success': True, 'status': 200, 'message': 'Account activated successfully'})
 
         return Response({'success': False, 'status': 404, 'error': 'Invalid OTP code'})
+
+
+class VerifyEmailAPIView(generics.CreateAPIView):
+    serializer_class = VerifyEmailSerializer
+
+    def post(self, request, *args, **kwargs):
+        email = request.data['email']
+        user=User.objects.filter(email=email).first()
+
+        if user:
+            if  user.is_active is False:
+                current_site = get_current_site(self.request)
+                generate_and_send_otp(email, current_site)
+                return Response({'success': True, 'status': 200, 'message': 'Email sent successfully.'})
+            
+            else:return Response({'success': True, 'status': 400, 'message': 'Your account is already activate'})
+
+        else:return Response({'success': True, 'status': 400, 'message': 'Email not found.please register first'})

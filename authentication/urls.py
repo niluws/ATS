@@ -10,4 +10,5 @@ urlpatterns = [
     path('me/', views.MeAPIView.as_view(), name='me'),
     path('refresh/', views.RefreshTokenAPIView.as_view(), name='refresh'),
     path("register/", views.RegisterAPIView.as_view(), name="register"),
+    path("verify_email/", views.VerifyEmailAPIView.as_view(), name="verify_email"),
 ]

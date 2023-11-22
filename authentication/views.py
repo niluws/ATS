@@ -94,7 +94,6 @@ class RegisterAPIView(generics.CreateAPIView):
 
 class LoginAPIView(generics.CreateAPIView):
     serializer_class = LoginSerializer
-    permission_classes = [permissions.AllowAny]
 
     @log_user_activity
     def create(self, request, *args, **kwargs):

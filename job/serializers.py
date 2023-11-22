@@ -9,7 +9,7 @@ class BasePositionSerializer(serializers.ModelSerializer):
             
 class HRApprovalSerializer(BasePositionSerializer):
     class Meta(BasePositionSerializer.Meta):
-        fields = BasePositionSerializer.Meta.fields + ['hr_approval', 'assigned_to_td']
+        fields = BasePositionSerializer.Meta.fields + ['hr_approval', 'assigned_to_td','is_advertised']
         read_only_fields = BasePositionSerializer.Meta.fields + ['assigned_to_td']
 
 

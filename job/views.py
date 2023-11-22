@@ -1,6 +1,7 @@
 from rest_framework import viewsets,generics
 from rest_framework.response import Response
 from authentication.permissions import IsSuperuserOrHR,IsSuperuserOrTD,IsAuthenticated
+from authentication.models import User
 from .serializers import JobSerializer, BasePositionSerializer,HRApprovalSerializer,TDApprovalSerializer,JobRequirementSerializer
 from .models import Job,NewPositionModel,JobRequirement
 
@@ -14,6 +15,23 @@ class HRApproval(generics.RetrieveUpdateAPIView):
     serializer_class = HRApprovalSerializer
     queryset = NewPositionModel.objects.all()
     permission_classes=[IsSuperuserOrHR]
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        td_user = User.objects.filter(profile__role__title='TD',profile__department=serializer.data.get('department')).first()
+        if td_user is None:
+            return Response({'status':400,'error':'No TD user exists for the specified department'})
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
 
 
 class TDApproval(generics.RetrieveUpdateAPIView):

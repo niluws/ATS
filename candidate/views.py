@@ -11,7 +11,7 @@ from django.utils import timezone
 from rest_framework import viewsets,generics,filters,serializers
 from rest_framework.response import Response
 
-from authentication.permissions import IsSuperuserOrHR
+from authentication.permissions import IsSuperuserOrHR,IsSuperuserOrTD,IsAuthenticated
 from job.models import Requirement
 from utils import config
 from .serializers import ExcelFileSerializer,CandidateSerializer,ScoreSerializer,CandidateUpdateSerializer,AppointmentSerializer
@@ -92,7 +92,7 @@ def schedule_interviews(candidate, interview_duration_hours):
 
 class UploadExcelAPIView(generics.CreateAPIView):
     serializer_class = ExcelFileSerializer
-    # permission_classes=[IsSuperuserOrHR]
+    permission_classes=[IsSuperuserOrHR]
 
     def save_education(self, soup, candidate_id):
         for education in soup.select('div.card-header:-soup-contains("تحصیلی") + div.card-body div.list-group-item label.d-block'):
@@ -244,6 +244,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
 class ScoreOnlineResume(generics.ListAPIView):
     queryset = CandidateModel.objects.all()
     serializer_class = ScoreSerializer
+    permission_classes=[IsSuperuserOrHR,IsSuperuserOrTD]
 
     def get_object(self,candidate_id):
         education_queryset=EducationModel.objects.filter(candidate_id=candidate_id)
@@ -316,6 +317,7 @@ class OldCandidateInvitationAPIView(generics.ListAPIView):
     serializer_class=CandidateSerializer
     filter_backends = (DjangoFilterBackend,)
     filterset_fields = ('job', )
+    permission_classes=[IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         job_param = request.GET.get('job', '')
@@ -339,7 +341,7 @@ class OldCandidateInvitationAPIView(generics.ListAPIView):
 class AppointmentViewSet(viewsets.ModelViewSet):
     queryset = AppointmentModel.objects.filter(interview_start_time__isnull=False)
     serializer_class = AppointmentSerializer
-
+    permission_classes=[IsAuthenticated]
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
 

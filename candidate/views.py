@@ -51,29 +51,32 @@ def schedule_interviews(candidate, interview_duration_hours):
     last_appointment = AppointmentModel.objects.all().exclude(interview_end_time=None).order_by('-interview_end_time').first()
     start_work_time = timezone.now().replace(hour=9, minute=0, second=0, microsecond=0)
     current_date = timezone.now()
+    candidate_exist=AppointmentModel.objects.filter(interview_start_time__isnull=True,candidate_id=candidate.id).exists()
 
     if last_appointment:
-        if current_date >= start_work_time:
-            if last_appointment.interview_end_time >= last_appointment.interview_end_time.replace(hour=12, minute=0, second=0, microsecond=0):
-                start_time = last_appointment.interview_end_time.replace(hour=9, minute=0, second=0, microsecond=0) + timezone.timedelta(days=1)
-                end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
-                appointment=AppointmentModel.objects.create(candidate_id=candidate.id,
-                                                interview_start_time=start_time,
-                                                interview_end_time=end_time)
-                print(candidate.name ,appointment.interview_start_time ,appointment.interview_end_time)
-                # EmailMessage(f'Interview Invitation - {candidate.job}',
-                #              f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to {appointment.interview_end_time}',
-                #              config.EMAIL_HOST_USER, [candidate.email]).send()
-            else:
-                start_time = last_appointment.interview_end_time
-                end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
-                appointment=AppointmentModel.objects.create(candidate_id=candidate.id,
-                                                interview_start_time=start_time,
-                                                interview_end_time=end_time)
-                print(candidate.name, appointment.interview_start_time, appointment.interview_end_time)
-                # EmailMessage(f'Interview Invitation - {candidate.job}',
-                # f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to { appointment.interview_end_time}',
-                #                  config.EMAIL_HOST_USER, [candidate.email]).send()
+        if candidate_exist is False:            
+            
+            if current_date >= start_work_time:
+                if last_appointment.interview_end_time >= last_appointment.interview_end_time.replace(hour=12, minute=0, second=0, microsecond=0):
+                    start_time = last_appointment.interview_end_time.replace(hour=9, minute=0, second=0, microsecond=0) + timezone.timedelta(days=1)
+                    end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
+                    appointment=AppointmentModel.objects.create(candidate_id=candidate.id,
+                                                    interview_start_time=start_time,
+                                                    interview_end_time=end_time)
+                    print(candidate.name ,appointment.interview_start_time ,appointment.interview_end_time)
+                    # EmailMessage(f'Interview Invitation - {candidate.job}',
+                    #              f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to {appointment.interview_end_time}',
+                    #              config.EMAIL_HOST_USER, [candidate.email]).send()
+                else:
+                    start_time = last_appointment.interview_end_time
+                    end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
+                    appointment=AppointmentModel.objects.create(candidate_id=candidate.id,
+                                                    interview_start_time=start_time,
+                                                    interview_end_time=end_time)
+                    print(candidate.name, appointment.interview_start_time, appointment.interview_end_time)
+                    # EmailMessage(f'Interview Invitation - {candidate.job}',
+                    # f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to { appointment.interview_end_time}',
+                    #                  config.EMAIL_HOST_USER, [candidate.email]).send()
 
     else:
         start_time = timezone.now().replace(hour=9, minute=0, second=0, microsecond=0) + timezone.timedelta(days=1)
@@ -288,20 +291,25 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
 
     def perform_update(self, serializer):
         candidate = serializer.instance
+        candidate_approval = serializer.validated_data.get('candidate_approval')
+
+        serializer.instance.candidate_approval = candidate_approval
+        serializer.instance.save(update_fields=['candidate_approval'])
 
         resume = serializer.validated_data.get('resume')
         if resume:
             jalali_update_date = jdatetime.fromgregorian(datetime=candidate.update_at)
-            formatted_update_date = jalali_update_date.strftime('%Y_%m_%d_%H_%M')
+            formatted_update_date = jalali_update_date.strftime('%Y_%m_%d_%H.%M')
 
             file_path = f"{candidate.job}/{candidate.name}_{formatted_update_date}.pdf"
-
             candidate.resume.save(file_path, resume, save=True)
-        if serializer.candidate_approval:
+        if candidate.candidate_approval:
             interview_duration_hours=1
             schedule_interviews(candidate, interview_duration_hours)
-        serializer.save()
-
+        elif candidate.candidate_approval == False:
+            appointment=AppointmentModel.objects.filter(interview_start_time__isnull=False,candidate_id=candidate.id).first()
+            if appointment:
+                appointment.delete()
 
 class OldCandidateInvitationAPIView(generics.ListAPIView):
     queryset=CandidateModel.objects.all()

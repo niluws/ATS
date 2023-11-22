@@ -15,11 +15,6 @@ class EducationModelSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class EducationModelSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = EducationModel
-        fields = '__all__'
-
 class PreferencesModelSerializer(serializers.ModelSerializer):
     class Meta:
         model = PreferencesModel
@@ -40,20 +35,21 @@ class ScoreSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class CandidateUpdateSerializer(serializers.ModelSerializer):
+    resume=serializers.FileField(required=False)
 
     class Meta:
         model = CandidateModel
-        fields = ['name', 'job', 'email', 'phone_number',
+        fields =['name', 'job', 'email', 'phone_number',
                    'province', 'location', 'marital','update_at',
-                    'birthdate', 'gender','resume','invitation_count']
+                    'birthdate', 'gender','resume','candidate_approval']
         read_only_fields = ['name', 'job', 'email', 'phone_number',
                    'province', 'location', 'marital','update_at',
-                    'birthdate', 'gender','invitation_count']
+                    'birthdate', 'gender']
+
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
-    # interview_time_jalali = serializers.ReadOnlyField(source='interview_time_jalali')
-    candidate=serializers.StringRelatedField()
+
     class Meta:
         model = AppointmentModel
         fields = '__all__'

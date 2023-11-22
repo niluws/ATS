@@ -33,7 +33,7 @@ class IsSuperuserOrTD(permissions.IsAuthenticated):
                 return True
 
         except :
-            raise AuthenticationFailed(detail='You are not HR or admin', code=401)
+            raise AuthenticationFailed(detail='You are not TD or admin', code=401)
 
 
 class IsAuthenticated(permissions.IsAuthenticated):

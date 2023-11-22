@@ -3,7 +3,6 @@ from rest_framework.response import Response
 from .models import User
 
 
-
 class RegisterSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(write_only=True)
 
@@ -33,6 +32,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['profile','first_name','last_name','email']
+
 
 class MeSerializer(serializers.ModelSerializer):
     class Meta:

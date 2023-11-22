@@ -24,7 +24,7 @@ class CandidateModel(models.Model):
     skills= ArrayField(models.CharField(max_length=150), null=True, blank=True)
     languages=ArrayField(models.CharField(max_length=150), null=True, blank=True)
     about=models.TextField(null=True, blank=True)
-    invitation_count=models.IntegerField(default=0)
+    candidate_approval=models.BooleanField(null=True, blank=True)
 
     def __str__(self):
         return self.name

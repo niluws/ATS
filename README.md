@@ -7,7 +7,7 @@ This system is designed to  automate various aspects of the hiring process, from
    - **User Authentication:** The system includes an authentication mechanism to control access. Users need to log in with valid token to access the system.
 
 ### 2. Job Management
-   - **Job Listing Page:** View and manage all job positions, with the ability to save them in the database.
+   - **Job Listing Page:** This page allows users to view and manage all job positions. The system provides the capability to CRUD job lists in the database.
 
 ### 3. Requirements and Skills
    - **Job Requirements :** Specify the requirements and skills for each job, including a scoring system that will be used to evaluate candidate resumes.
@@ -26,7 +26,7 @@ This system is designed to  automate various aspects of the hiring process, from
    - **Score Calculation:** The system calculates scores for candidates based on job requirements. Candidates with eligible scores initiates the interview scheduling process.
 
 ### 8. Interview Scheduling
-   - **Interview Appointment Page:** The system schedules interview appointments for eligible candidates and sends confirmation emails with the interview time to the candidates.
+   - **Interview Appointment Page:** The system is designed to schedule interview appointments for eligible candidates. It sends confirmation emails, including the interview time, to the candidates. Additionally, this page allows HR personnel to perform CRUD operations on appointments.
 
 ### 9. Old Candidate Updates
    - **Invite Old Candidates:**   HR can set job titles to filter and automatically send an email, including a form, to old candidates with the relevant job title to update their resumes and approve.

@@ -11,25 +11,28 @@ This system is designed to  automate various aspects of the hiring process, from
 
 ### 3. Requirements and Skills
    - **Job Requirements :** Specify the requirements and skills for each job, including a scoring system that will be used to evaluate candidate resumes.
+     
+### 4. New Member
+   - **Add Member Form:** Users can submit new form by specifying the job title and providing relevant details when the company needs new member.
 
-### 4. HR Approval
+### 5. HR Approval
    - **HR Approval Page:** HR personnel can review and approve submitted forms. If approved, the system automatically notifies the Technical Director of the relevant department to review and add interviewers. If rejected, there is a message field for feedback.
 
-### 5. Technical Director(TD) Approval
+### 6. Technical Director(TD) Approval
    - **TD Approval Page:** TDs can approve forms and add interviewers.
 
-### 6. Resume Upload and Analysis
+### 7. Resume Upload and Analysis
    - **Resume Upload by HR:** HR can upload an Excel file containing links to online resumes. The system extracts relevant information and adds the links and job positions and etc to the database.
    - **Score Calculation:** The system calculates scores for candidates based on job requirements. Candidates with eligible scores initiates the interview scheduling process.
 
-### 7. Interview Scheduling
+### 8. Interview Scheduling
    - **Interview Appointment Page:** The system schedules interview appointments for eligible candidates and sends confirmation emails with the interview time to the candidates.
 
-### 8. Old Candidate Updates
+### 9. Old Candidate Updates
    - **Invite Old Candidates:**   HR can set job titles to filter and automatically send an email, including a form, to old candidates with the relevant job title to update their resumes and approve.
    - **Interview Appointment for Old Candidates:** Interview appointments are automatically set for old candidates who approve the form and are eligible based on the score.
      
-### 9. Candidate List
+### 10. Candidate List
    - **Candidate List Page:** View a list of all candidates stored in the database.
 
 ## Getting Started

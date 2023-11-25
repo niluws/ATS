@@ -6,6 +6,7 @@ app_name='candidate'
 
 router = DefaultRouter()
 router.register(r'appointment', views.AppointmentViewSet)
+router.register(r'settings', views.SettingsViewSet)
 
 urlpatterns = [
    path('', include(router.urls)),

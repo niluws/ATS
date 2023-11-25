@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CandidateModel,EducationModel,PreferencesModel,ExperiencesModel,AppointmentModel
+from .models import CandidateModel,EducationModel,PreferencesModel,ExperiencesModel,AppointmentModel,SettingsModel
 
 class ExcelFileSerializer(serializers.Serializer):
     file=serializers.FileField()
@@ -52,4 +52,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AppointmentModel
+        fields = '__all__'
+
+class SettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SettingsModel
         fields = '__all__'

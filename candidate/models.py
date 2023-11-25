@@ -1,6 +1,10 @@
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
-from jdatetime import datetime as jdatetime
+from django.db import models
+
+class SettingsModel(models.Model):
+    pass_score=models.IntegerField()
+    interview_duration_hours=models.IntegerField()
 
 class CandidateModel(models.Model):
     name = models.CharField(max_length=150)

@@ -14,30 +14,34 @@ from rest_framework.response import Response
 from authentication.permissions import IsSuperuserOrHR,IsSuperuserOrTD,IsAuthenticated
 from job.models import Requirement
 from utils import config
-from .serializers import ExcelFileSerializer,CandidateSerializer,ScoreSerializer,CandidateUpdateSerializer,AppointmentSerializer
-from .models import CandidateModel,EducationModel,PreferencesModel,ExperiencesModel,AppointmentModel
+from .serializers import ExcelFileSerializer,CandidateSerializer,ScoreSerializer,CandidateUpdateSerializer,AppointmentSerializer,SettingsSerializer
+from .models import CandidateModel,EducationModel,PreferencesModel,ExperiencesModel,AppointmentModel,SettingsModel
 
 
 def calculate_skill_score(candidate):
         
-        requirement = Requirement.objects.all()
-        
-        education=EducationModel.objects.filter(candidate_id=candidate.id)  
+        requirement = Requirement.objects.all()  
+        educations = list(EducationModel.objects.filter(candidate_id=candidate.id))
+
         total_score = ExperiencesModel.objects.filter(candidate_id=candidate.id).count()
 
         for req in requirement:
             en, fa = req.en_title, req.fa_title
-            
-            for edu in education:                
+            req_counted = False 
+            for edu in educations :                
                 if en.lower() in ''.join([edu.level, edu.major]).lower() or fa in ''.join([edu.level, edu.major]):
-                    total_score += req.score                    
-                    break
+                    if not req_counted:
+                        total_score += req.score
+                        req_counted = True                  
+                        break
             
             for skill in (candidate.languages, candidate.skills,candidate.about):
                 if skill:
                     if en.lower() in ''.join(skill).lower() or fa in ''.join(skill):
-                        total_score += req.score  
-                        break
+                        if not req_counted:
+                            total_score += req.score  
+                            req_counted = True
+                            break
         return total_score
 
 
@@ -48,7 +52,7 @@ def schedule_interviews(candidate, interview_duration_hours):
     candidate_exist=AppointmentModel.objects.filter(interview_start_time__isnull=True,candidate_id=candidate.id).exists()
 
     if last_appointment:
-        if candidate_exist is False:            
+        if candidate_exist:            
             
             if current_date >= start_work_time:
                 if last_appointment.interview_end_time >= last_appointment.interview_end_time.replace(hour=12, minute=0, second=0, microsecond=0):
@@ -240,31 +244,27 @@ class ScoreOnlineResume(generics.ListAPIView):
     serializer_class = ScoreSerializer
     permission_classes=[IsSuperuserOrHR,IsSuperuserOrTD]
 
-    def get_object(self,candidate_id):
-        education_queryset=EducationModel.objects.filter(candidate_id=candidate_id)
-        return education_queryset
+
     
     def get(self, request, *args, **kwargs):
         candidates = self.get_queryset()
-        interview_duration_hours=1
+        settings=SettingsModel.objects.all().first()
+
+        interview_duration_hours=settings.interview_duration_hours
         for candidate in candidates:
             if candidate.score is  None or  candidate.score == 0:
                 skill_score = calculate_skill_score(candidate)
                 candidate.score = skill_score
                 candidate.save()
 
-                if candidate.score :
-                    if candidate.score >= 2:
-                        print('accepted:Send Interview Invitation date')
-                        
-                        schedule_interviews(candidate,interview_duration_hours)
-                        candidate.save()
-
-
-                    else:
-                        print('rejected')
-                    #     EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
-                    #                  config.EMAIL_HOST_USER, [candidate.email]).send()
+                if candidate.score >= settings.pass_score:
+                    print('accepted:Send Interview Invitation date')
+                    
+                    schedule_interviews(candidate,interview_duration_hours)
+                else:
+                    print('rejected')
+                #     EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
+                #                  config.EMAIL_HOST_USER, [candidate.email]).send()
 
         serializer = ScoreSerializer(candidates, many=True)
 
@@ -355,3 +355,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+    
+class SettingsViewSet(viewsets.ModelViewSet):
+    queryset = SettingsModel.objects.all()
+    serializer_class = SettingsSerializer

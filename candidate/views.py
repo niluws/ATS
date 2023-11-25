@@ -8,7 +8,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.mail import EmailMessage
 from django.utils import timezone
-from rest_framework import viewsets,generics,filters,serializers
+from rest_framework import viewsets,generics,filters
 from rest_framework.response import Response
 
 from authentication.permissions import IsSuperuserOrHR,IsSuperuserOrTD,IsAuthenticated
@@ -23,25 +23,19 @@ def calculate_skill_score(candidate):
         requirement = Requirement.objects.all()
         
         education=EducationModel.objects.filter(candidate_id=candidate.id)  
-                
-        total_score = 0
+        total_score = ExperiencesModel.objects.filter(candidate_id=candidate.id).count()
 
         for req in requirement:
-            en=req.en_title
-            fa=req.fa_title
+            en, fa = req.en_title, req.fa_title
             
             for edu in education:                
-                if en in edu.level or fa in edu.level or en in edu.major or fa in edu.major:
-                    total_score += req.score
-                    
+                if en.lower() in ''.join([edu.level, edu.major]).lower() or fa in ''.join([edu.level, edu.major]):
+                    total_score += req.score                    
                     break
             
-            for skill in candidate.languages,candidate.skills:
-                en=req.en_title
-                fa=req.fa_title
-                if skill is not None:
-
-                    if en.lower() in ''.join(skill).lower() or fa in ''.join(skill).lower():
+            for skill in (candidate.languages, candidate.skills,candidate.about):
+                if skill:
+                    if en.lower() in ''.join(skill).lower() or fa in ''.join(skill):
                         total_score += req.score  
                         break
         return total_score

@@ -42,7 +42,7 @@ class TDApproval(generics.RetrieveUpdateAPIView):
     def put(self, request, *args, **kwargs):
         instance = self.get_object()
         if not instance.hr_approval:
-            return Response({"error": "HR approval is required to update this data."},status=403)
+            return Response({"error": "HR approval is required for update this data.Wait for HR approval"},status=403)
         if instance.td_approval is False and 'interviewer' not in request.data:
             return Response({"error": "The 'interviewer' field is required.You should add interviewer"},status=400)
         

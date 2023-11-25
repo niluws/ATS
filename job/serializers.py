@@ -9,13 +9,13 @@ class BasePositionSerializer(serializers.ModelSerializer):
             
 class HRApprovalSerializer(BasePositionSerializer):
     class Meta(BasePositionSerializer.Meta):
-        fields = BasePositionSerializer.Meta.fields + ['hr_approval', 'assigned_to_td','is_advertised']
+        fields = BasePositionSerializer.Meta.fields + ['hr_approval', 'assigned_to_td','is_advertised','message']
         read_only_fields = BasePositionSerializer.Meta.fields + ['assigned_to_td']
 
 
 class TDApprovalSerializer(HRApprovalSerializer):
     class Meta(HRApprovalSerializer.Meta):
-        fields = HRApprovalSerializer.Meta.fields + ['interviewer', 'is_advertised','td_approval']
+        fields = HRApprovalSerializer.Meta.fields + ['interviewer', 'is_advertised','td_approval','message']
         read_only_fields = HRApprovalSerializer.Meta.fields + ['is_advertised']
 
 class JobSerializer(serializers.ModelSerializer):

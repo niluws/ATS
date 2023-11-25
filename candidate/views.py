@@ -306,7 +306,15 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
             candidate.resume.save(file_path, resume, save=True)
         if candidate.candidate_approval:
             interview_duration_hours=1
-            schedule_interviews(candidate, interview_duration_hours)
+            if candidate.score>=2:
+                schedule_interviews(candidate, interview_duration_hours)
+            else:
+                print(f'Your resume rejected', 'Hello, we may reach out to you again in the future')
+        
+        # EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
+        #             config.EMAIL_HOST_USER, [candidate.email]).send()
+
+
         elif candidate.candidate_approval == False:
             appointment=AppointmentModel.objects.filter(interview_start_time__isnull=False,candidate_id=candidate.id).first()
             if appointment:

@@ -45,9 +45,9 @@ def calculate_skill_score(candidate):
         return total_score
 
 
-def schedule_interviews(candidate, interview_duration_hours):
+def schedule_interviews(candidate, interview_duration_hours,start_work,end_word):
     last_appointment = AppointmentModel.objects.all().exclude(interview_end_time=None).order_by('-interview_end_time').first()
-    start_work_time = timezone.now().replace(hour=9, minute=0, second=0, microsecond=0)
+    start_work_time = timezone.now().replace(hour=start_work, minute=0, second=0, microsecond=0)
     current_date = timezone.now()
     candidate_exist=AppointmentModel.objects.filter(interview_start_time__isnull=True,candidate_id=candidate.id).exists()
 
@@ -55,7 +55,7 @@ def schedule_interviews(candidate, interview_duration_hours):
         if candidate_exist:            
             
             if current_date >= start_work_time:
-                if last_appointment.interview_end_time >= last_appointment.interview_end_time.replace(hour=12, minute=0, second=0, microsecond=0):
+                if last_appointment.interview_end_time >= last_appointment.interview_end_time.replace(hour=end_word, minute=0, second=0, microsecond=0):
                     start_time = last_appointment.interview_end_time.replace(hour=9, minute=0, second=0, microsecond=0) + timezone.timedelta(days=1)
                     end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
                     appointment=AppointmentModel.objects.create(candidate_id=candidate.id,
@@ -260,7 +260,7 @@ class ScoreOnlineResume(generics.ListAPIView):
                 if candidate.score >= settings.pass_score:
                     print('accepted:Send Interview Invitation date')
                     
-                    schedule_interviews(candidate,interview_duration_hours)
+                    schedule_interviews(candidate,interview_duration_hours,settings.start_work_time,settings.end_work_time)
                 else:
                     print('rejected')
                 #     EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',

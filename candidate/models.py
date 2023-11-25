@@ -3,8 +3,10 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
 class SettingsModel(models.Model):
-    pass_score=models.IntegerField()
-    interview_duration_hours=models.IntegerField()
+    pass_score=models.IntegerField(null=True,blank=True)
+    interview_duration_hours=models.IntegerField(null=True,blank=True)
+    start_work_time=models.IntegerField(null=True,blank=True)
+    end_work_time=models.IntegerField(null=True,blank=True)
 
 class CandidateModel(models.Model):
     name = models.CharField(max_length=150)

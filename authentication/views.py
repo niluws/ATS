@@ -23,11 +23,11 @@ def log_user_activity(func):
     @wraps(func)
     def wrapper_func(self, request, *args, **kwargs):
         response = func(self, request, *args, **kwargs)
-        logger = logging.getLogger('user_activity')
-        user = request.data.get('user_id')
-        message = request.data.get('message')
-        asctime = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        logger.info(f'{asctime} - INFO - user_id: {user} {message}')
+        logger = logging.getLogger("user_activity")
+        user = dict(response.data).get("message").get("user_id")
+        message = dict(response.data).get("message").get("message")
+        asctime = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        logger.info(f"{asctime} - INFO - user_id: {user}, {message} ")
 
         return response
 
@@ -76,16 +76,13 @@ class RegisterAPIView(generics.CreateAPIView):
             user.save()
             user.profile = Profile.objects.create(user=user)
             message = {
-                'message': 'You registered successfuly',
+                'message': 'Registered successfully',
                 'first_name': serializer.validated_data.get('first_name'),
                 'last_name': serializer.validated_data.get('last_name'),
                 'email': email,
+                'user_id': user.pk,
 
             }
-
-            self.request.data['message'] = 'registered'
-            self.request.data['user_id'] = user.pk
-
 
             return Response({'success': True, 'status': 201, 'message': message})
         except Exception as e:
@@ -110,12 +107,10 @@ class LoginAPIView(generics.CreateAPIView):
                     return Response({'success': False, 'status': 401, 'error': 'Incorrect password'})
                 login_token = jwt_manager.encode_login_token(user.email)
 
-                request.data['user_id'] = user.pk
-                request.data['message'] = 'logged in'
-
                 message = {
-                    'message': 'You logged in successfuly',
+                    'message': 'Logged in successfully',
                     'data': login_token,
+                    'user_id': user.pk,
                 }
                 return Response({'success': True, 'status': 200, 'message': message})
             else:
@@ -131,12 +126,13 @@ class LogoutAPIView(generics.GenericAPIView):
     def get(self, request):
         auth = jwt_manager.get_user_from_auth_header(self.request)
         user = User.objects.get(email=auth)
-
         if auth:
-            request.data['user_id'] = user.id
-            request.data['message'] = 'logged out'
+            message = {
+                'message': 'Logout successfully',
+                'user_id': user.pk,
+            }
 
-            return Response({'success': True, 'status': 200, 'message': 'You logout successfuly'})
+            return Response({'success': True, 'status': 200, 'message': message})
         else:
             return Response({'success': False, 'status': 401, 'error': 'User is not authenticated'})
 

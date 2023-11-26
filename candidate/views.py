@@ -18,31 +18,27 @@ from .serializers import ExcelFileSerializer,CandidateSerializer,ScoreSerializer
 from .models import CandidateModel,EducationModel,PreferencesModel,ExperiencesModel,AppointmentModel,SettingsModel
 
 
-def calculate_skill_score(candidate):
-        
-        requirement = Requirement.objects.all()  
-        educations = list(EducationModel.objects.filter(candidate_id=candidate.id))
+def calculate_skill_score(candidate,educations,requirement,experiences_count):
+    total_score = experiences_count
 
-        total_score = ExperiencesModel.objects.filter(candidate_id=candidate.id).count()
+    for req in requirement:
+        en, fa = req.en_title, req.fa_title
+        req_counted = False
+        for edu in educations:
+            if en.lower() in ''.join([edu.level, edu.major]).lower() or fa in ''.join([edu.level, edu.major]):
+                if not req_counted:
+                    total_score += req.score
+                    req_counted = True
+                    break
 
-        for req in requirement:
-            en, fa = req.en_title, req.fa_title
-            req_counted = False 
-            for edu in educations :                
-                if en.lower() in ''.join([edu.level, edu.major]).lower() or fa in ''.join([edu.level, edu.major]):
+        for skill in (candidate.languages, candidate.skills, candidate.about):
+            if skill:
+                if en.lower() in ''.join(skill).lower() or fa in ''.join(skill):
                     if not req_counted:
                         total_score += req.score
-                        req_counted = True                  
+                        req_counted = True
                         break
-            
-            for skill in (candidate.languages, candidate.skills,candidate.about):
-                if skill:
-                    if en.lower() in ''.join(skill).lower() or fa in ''.join(skill):
-                        if not req_counted:
-                            total_score += req.score  
-                            req_counted = True
-                            break
-        return total_score
+    return total_score
 
 
 def schedule_interviews(candidate, interview_duration_hours,start_work,end_word):
@@ -52,8 +48,8 @@ def schedule_interviews(candidate, interview_duration_hours,start_work,end_word)
     candidate_exist=AppointmentModel.objects.filter(interview_start_time__isnull=True,candidate_id=candidate.id).exists()
 
     if last_appointment:
-        if candidate_exist:            
-            
+        if candidate_exist:
+
             if current_date >= start_work_time:
                 if last_appointment.interview_end_time >= last_appointment.interview_end_time.replace(hour=end_word, minute=0, second=0, microsecond=0):
                     start_time = last_appointment.interview_end_time.replace(hour=9, minute=0, second=0, microsecond=0) + timezone.timedelta(days=1)
@@ -105,9 +101,9 @@ class UploadExcelAPIView(generics.CreateAPIView):
                 )
             else: None
             new_education.save()
-            
+
     def save_preferences(self, soup, candidate_id):
-        output_dict = {}   
+        output_dict = {}
         for preference in soup.select('div.card-header:-soup-contains("ترجیحات") + div.card-body div.list-group-item label.d-block'):
             next_sibling = preference.find_next_sibling('div', class_='font-size-2xl vertical-align-middle color-grey-light-1')
             values = next_sibling.find_all('label', class_='font-size-base color-grey-dark-2 mh-1')
@@ -167,7 +163,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
         uploaded_file = request.FILES.get('file')
 
         if not uploaded_file:
-            
+
             return Response({'success': False, 'status': 400, 'error': 'No file uploaded'})
         file_name = default_storage.save(uploaded_file, uploaded_file)
         file_path = default_storage.path(file_name)
@@ -176,15 +172,15 @@ class UploadExcelAPIView(generics.CreateAPIView):
             workbook = load_workbook(file_path)
             worksheet = workbook.active
             new_user_count=0
-            
+
             for row in worksheet.iter_rows(min_col=2, min_row=2):
                 user_email = row[3].value
 
                 if not user_email:
                     continue
-                    
+
                 exist_candidate = CandidateModel.objects.filter(email=user_email).exists()
-                
+
                 if not exist_candidate:
 
                     hyperlink = row[5].hyperlink
@@ -226,7 +222,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
                                 AppointmentModel.objects.create(candidate_id=new_candidate.pk)
                             except Exception as e:
                                 return Response({'success': False, 'status': 500, 'error': f'Error saving candidate: {e}'})
-                            
+
                             new_user_count+=1
 
                         except (KeyError, requests.RequestException):
@@ -240,27 +236,29 @@ class UploadExcelAPIView(generics.CreateAPIView):
 
 
 class ScoreOnlineResume(generics.ListAPIView):
-    queryset = CandidateModel.objects.all()
+    queryset = CandidateModel.objects.prefetch_related('experiencesmodel_set','educationmodel_set').all()
     serializer_class = ScoreSerializer
-    permission_classes=[IsSuperuserOrHR,IsSuperuserOrTD]
 
+    # permission_classes = [IsSuperuserOrHR, IsSuperuserOrTD]
 
-    
     def get(self, request, *args, **kwargs):
         candidates = self.get_queryset()
-        settings=SettingsModel.objects.all().first()
+        requirement = Requirement.objects.all()
+        settings = SettingsModel.objects.all().first()
+        if settings is None:
+            return Response({'success': False, 'status': 400, 'error': 'You have no data in settings.'})
 
-        interview_duration_hours=settings.interview_duration_hours
         for candidate in candidates:
-            if candidate.score is  None or  candidate.score == 0:
-                skill_score = calculate_skill_score(candidate)
-                candidate.score = skill_score
-                candidate.save()
 
+            if candidate.score is None or candidate.score == 0:
+                educations = candidate.educationmodel_set.all()
+                experiences_count = candidate.experiencesmodel_set.count()
+                calculate_skill_score(candidate, educations, requirement, experiences_count)
+                # candidate.save()
                 if candidate.score >= settings.pass_score:
                     print('accepted:Send Interview Invitation date')
-                    
-                    schedule_interviews(candidate,interview_duration_hours,settings.start_work_time,settings.end_work_time)
+                    schedule_interviews(candidate, settings.interview_duration_hours, settings.start_work_time,
+                                        settings.end_work_time)
                 else:
                     print('rejected')
                 #     EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
@@ -304,7 +302,7 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
                 schedule_interviews(candidate, interview_duration_hours)
             else:
                 print(f'Your resume rejected', 'Hello, we may reach out to you again in the future')
-        
+
         # EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
         #             config.EMAIL_HOST_USER, [candidate.email]).send()
 
@@ -332,7 +330,7 @@ class OldCandidateInvitationAPIView(generics.ListAPIView):
 
     def send_invitation_email(self, candidate, job_param,current_site,candidate_id):
         print(f'Hello {candidate.name} Please consider updating your resume and applying for {job_param} position if you are interested Click on the following link to apply:http://{current_site.domain}/candidate/candidate_update/{candidate_id}',)
-        
+
         # EmailMessage('Job Opportunity Update',
         #             f'Hello {candidate.name} \n'/
         #             f'Please consider updating your resume and applying for {job_param} position if you are interested.\n '\
@@ -351,11 +349,11 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-            
+
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-    
+
 class SettingsViewSet(viewsets.ModelViewSet):
     queryset = SettingsModel.objects.all()
     serializer_class = SettingsSerializer

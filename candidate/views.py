@@ -1,21 +1,23 @@
-import os,requests,re,datetime,pytz
+import os
+import re
+import uuid
+
+import requests
 from bs4 import BeautifulSoup
+from django.contrib.sites.shortcuts import get_current_site
+from django.core.files.storage import default_storage
+from django.utils import timezone
+from django_filters.rest_framework import DjangoFilterBackend
 from jdatetime import datetime as jdatetime
 from openpyxl import load_workbook
-from django.contrib.sites.shortcuts import get_current_site
-from django_filters.rest_framework import DjangoFilterBackend
-from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
-from django.core.mail import EmailMessage
-from django.utils import timezone
-from rest_framework import viewsets,generics,filters
+from rest_framework import viewsets, generics, filters
 from rest_framework.response import Response
 
-from authentication.permissions import IsSuperuserOrHR,IsSuperuserOrTD,IsAuthenticated
+from authentication.permissions import IsSuperuserOrHR, IsAuthenticated,IsSuperuserOrTD
 from job.models import Requirement
-from utils import config
-from .serializers import ExcelFileSerializer,CandidateSerializer,ScoreSerializer,CandidateUpdateSerializer,AppointmentSerializer,SettingsSerializer
-from .models import CandidateModel,EducationModel,PreferencesModel,ExperiencesModel,AppointmentModel,SettingsModel
+from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel, SettingsModel
+from .serializers import ExcelFileSerializer, CandidateSerializer, ScoreSerializer, CandidateUpdateSerializer, \
+    AppointmentSerializer, SettingsSerializer
 
 
 def calculate_skill_score(candidate,educations,requirement,experiences_count):
@@ -86,10 +88,11 @@ def schedule_interviews(candidate, interview_duration_hours,start_work,end_word)
 
 class UploadExcelAPIView(generics.CreateAPIView):
     serializer_class = ExcelFileSerializer
-    permission_classes=[IsSuperuserOrHR]
+    permission_classes = [IsSuperuserOrHR]
 
-    def save_education(self, soup, candidate_id):
-        for education in soup.select('div.card-header:-soup-contains("تحصیلی") + div.card-body div.list-group-item label.d-block'):
+    def save_education(self, soup, candidate_id, education_to_save):
+        for education in soup.select(
+                'div.card-header:-soup-contains("تحصیلی") + div.card-body div.list-group-item label.d-block'):
             education_text = education.get_text(strip=True).split('-')
             if education_text:
                 new_education = EducationModel(
@@ -97,18 +100,23 @@ class UploadExcelAPIView(generics.CreateAPIView):
                     level=education_text[0].strip(),
                     major=education_text[1].strip(),
                     university=education.find_next('div', class_='font-size-base').find('span').get_text(strip=True),
-                    duration=re.sub(r'\s+', ' ', education.find_next('div', class_='font-size-base').find('span', class_='mr-3').text),
+                    duration=re.sub(r'\s+', ' ', education.find_next('div', class_='font-size-base').find('span',
+                                                                                                          class_='mr-3').text),
                 )
-            else: None
-            new_education.save()
+            else:
+                None
+            education_to_save.append(new_education)
 
-    def save_preferences(self, soup, candidate_id):
+    def save_preferences(self, soup, candidate_id, preferences_to_save):
         output_dict = {}
-        for preference in soup.select('div.card-header:-soup-contains("ترجیحات") + div.card-body div.list-group-item label.d-block'):
-            next_sibling = preference.find_next_sibling('div', class_='font-size-2xl vertical-align-middle color-grey-light-1')
+        for preference in soup.select(
+                'div.card-header:-soup-contains("ترجیحات") + div.card-body div.list-group-item label.d-block'):
+            next_sibling = preference.find_next_sibling('div',
+                                                        class_='font-size-2xl vertical-align-middle color-grey-light-1')
             values = next_sibling.find_all('label', class_='font-size-base color-grey-dark-2 mh-1')
             key = re.sub(r'\s+', ' ', preference.get_text(strip=True).replace('\u200c', ' ').strip())
-            value = [re.sub(r'\s+', ' ',val.get_text(strip=True).replace('\u200c', ' ').replace('\n', '')) for val in values]
+            value = [re.sub(r'\s+', ' ', val.get_text(strip=True).replace('\u200c', ' ').replace('\n', '')) for val in
+                     values]
             output_dict[key] = value
 
         new_preference = PreferencesModel(
@@ -120,18 +128,16 @@ class UploadExcelAPIView(generics.CreateAPIView):
             salary=output_dict.get('حقوق مورد نظر:'),
             benefits=output_dict.get('مزایای شغلی مورد علاقه:') if 'مزایای شغلی مورد علاقه:' in output_dict else None
         )
-        new_preference.save()
+        preferences_to_save.append(new_preference)
 
-    def extract_languages(self, soup):
-        language_element=soup.select('div.card-header:-soup-contains("زبان") + div.card-body div.list-group-item')
-        return  [ re.sub(r'\s+',' ',language.find('label').get_text()) for language in language_element] if language_element else None
+    def save_experiences(self, soup, candidate_id, experiences_to_save):
 
-    def save_experiences(self, soup,candidate_id):
-        for experience in soup.select('div.card-header:-soup-contains("سوابق شغلی") + div.card-body div.list-group-item'):
-            title=experience.find('label').text
-            company=experience.find('span').text
-            start_at=re.sub(r'\s+',' ',experience.find('span',class_='mr-3').find('b').text)
-            end_at=re.sub(r'\s+',' ',experience.find('span',class_='mr-3').find_all('b')[-1].text.strip())
+        for experience in soup.select(
+                'div.card-header:-soup-contains("سوابق شغلی") + div.card-body div.list-group-item'):
+            title = experience.find('label').text
+            company = experience.find('span').text
+            start_at = re.sub(r'\s+', ' ', experience.find('span', class_='mr-3').find('b').text)
+            end_at = re.sub(r'\s+', ' ', experience.find('span', class_='mr-3').find_all('b')[-1].text.strip())
 
             start_date = jdatetime.strptime(start_at, "%B %Y").date()
             if end_at == "حالا":
@@ -139,7 +145,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
             else:
                 end_date = jdatetime.strptime(end_at, "%B %Y").date()
 
-            new_experience=ExperiencesModel(
+            new_experience = ExperiencesModel(
                 candidate_id=candidate_id,
                 title=title or None,
                 company=company or None,
@@ -147,99 +153,120 @@ class UploadExcelAPIView(generics.CreateAPIView):
                 end_at=end_at or None,
                 duration=(end_date - start_date).days
             )
-            new_experience.save()
+            experiences_to_save.append(new_experience)
+
+    def extract_languages(self, soup):
+        language_element = soup.select('div.card-header:-soup-contains("زبان") + div.card-body div.list-group-item')
+        return [re.sub(r'\s+', ' ', language.find('label').get_text()) for language in
+                language_element] if language_element else None
 
     def extract_skills(self, soup):
-        skill_element= soup.select('div.card-header:-soup-contains("حرفه") + div.card-body div.font-size-2xl.vertical-align-middle.color-grey-light-1 label.font-size-base.color-grey-dark-2.mh-1')
-        return  [skill.get_text(strip=True) for skill in skill_element] if  skill_element else None
+        skill_element = soup.select(
+            'div.card-header:-soup-contains("حرفه") + div.card-body div.font-size-2xl.vertical-align-middle.color-grey-light-1 label.font-size-base.color-grey-dark-2.mh-1')
+        return [skill.get_text(strip=True) for skill in skill_element] if skill_element else None
 
     def extract_data(self, soup, label_text):
         label = soup.find('label', text=re.compile(label_text))
-        if label:
-            return re.sub(r'\s+',' ',label.find_next_sibling('span').get_text(strip=True))
-        else:None
+        return re.sub(r'\s+', ' ', label.find_next_sibling('span').get_text(strip=True)) if label else None
+
+    def process_row(self, row, file_path, user_email, candidates_to_create, experiences_to_save, preferences_to_save,
+                    education_to_save):
+        hyperlink = row[6].hyperlink
+
+        if hyperlink is not None:
+            try:
+                response = requests.get(hyperlink.target)
+                soup = BeautifulSoup(response.text, 'html.parser')
+                # url = soup.find(lambda tag: tag.name == 'a' and 'دانلود' in tag.get_text(strip=True))['href']
+                # resume_response = requests.get(url)
+                unique_id=uuid.uuid1()
+                candidate_data = {
+                    'id': unique_id,
+                    'name': row[2].value,
+                    'job': row[1].value,
+                    'phone_number': row[3].value,
+                    'email': user_email,
+                    'request_date': row[5].value,
+                    # 'resume': ContentFile(resume_response.content,
+                    #                       name=f"{row[1].value}/{row[2].value}.pdf") if resume_response else None,
+                    'job_status': self.extract_data(soup, 'وضعیت اشتغال'),
+                    'last_company': self.extract_data(soup, 'شرکت'),
+                    'education_level': self.extract_data(soup, 'تحصیلی'),
+                    'province': self.extract_data(soup, 'استان'),
+                    'location': self.extract_data(soup, 'آدرس محل'),
+                    'marital': self.extract_data(soup, 'تاهل'),
+                    'birthdate': self.extract_data(soup, 'سال تولد'),
+                    'gender': self.extract_data(soup, 'جنسیت'),
+                    'military_service_status': self.extract_data(soup, 'وضعیت خدمت'),
+                    'about': soup.find('p', class_='u-textJustify').get_text() if soup.find('p',
+                                                                                            class_='u-textJustify') else None,
+                    'skills': self.extract_skills(soup),
+                    'languages': self.extract_languages(soup),
+                }
+                candidates_to_create.append(CandidateModel(**candidate_data))
+                self.save_experiences(soup, unique_id, experiences_to_save)
+                self.save_preferences(soup, unique_id, preferences_to_save)
+                self.save_education(soup, unique_id, education_to_save)
+
+            except (KeyError, requests.RequestException):
+                os.remove(file_path)
+                return Response({'success': False, 'status': 422, 'error': 'Cannot access URL'})
 
     def post(self, request, *args, **kwargs):
         uploaded_file = request.FILES.get('file')
 
         if not uploaded_file:
-
             return Response({'success': False, 'status': 400, 'error': 'No file uploaded'})
+
         file_name = default_storage.save(uploaded_file, uploaded_file)
         file_path = default_storage.path(file_name)
-
+        candidates_to_create = []
+        experiences_to_save = []
+        preferences_to_save = []
+        education_to_save = []
+        new_user_count = 0
+        similar_candidate = 0
         try:
             workbook = load_workbook(file_path)
             worksheet = workbook.active
-            new_user_count=0
 
-            for row in worksheet.iter_rows(min_col=2, min_row=2):
-                user_email = row[3].value
+            existing_emails = set(CandidateModel.objects.values_list('email', flat=True))
 
-                if not user_email:
+            for row in worksheet.iter_rows(min_col=1, min_row=2):
+                user_email = row[4].value
+
+                if user_email in existing_emails:
+                    similar_candidate += 1
                     continue
+                self.process_row(row, file_path, user_email, candidates_to_create, experiences_to_save,
+                                 preferences_to_save, education_to_save)
 
-                exist_candidate = CandidateModel.objects.filter(email=user_email).exists()
+                new_user_count += 1
 
-                if not exist_candidate:
-
-                    hyperlink = row[5].hyperlink
-
-                    if hyperlink is not None:
-
-                        try:
-                            response = requests.get(hyperlink.target)
-                            soup = BeautifulSoup(response.text, 'html.parser')
-                            # url = soup.find(lambda tag: tag.name == 'a' and 'دانلود' in tag.get_text(strip=True))['href']
-                            # resume_response = requests.get(url)
-
-
-                            new_candidate = CandidateModel(
-                                name=row[1].value,
-                                job=row[0].value,
-                                phone_number=row[2].value,
-                                email=user_email,
-                                request_date=row[4].value,
-                                # resume=ContentFile(resume_response.content, name=f"{row[0].value}/{row[1].value}.pdf") if resume_response else None,
-                                job_status=self.extract_data(soup, 'وضعیت اشتغال'),
-                                last_company=self.extract_data(soup, 'شرکت'),
-                                education_level=self.extract_data(soup, 'تحصیلی'),
-                                province=self.extract_data(soup, 'استان'),
-                                location=self.extract_data(soup, 'آدرس محل'),
-                                marital=self.extract_data(soup, 'تاهل'),
-                                birthdate=self.extract_data(soup, 'سال تولد'),
-                                gender=self.extract_data(soup, 'جنسیت'),
-                                military_service_status=self.extract_data(soup, 'وضعیت خدمت'),
-                                about=soup.find('p', class_='u-textJustify').get_text() if soup.find('p', class_='u-textJustify') else None,
-                                skills=self.extract_skills(soup),
-                                languages=self.extract_languages(soup),
-                            )
-                            try:
-                                new_candidate.save()
-                                self.save_preferences(soup,new_candidate.pk)
-                                self.save_education(soup, new_candidate.pk)
-                                self.save_experiences(soup, new_candidate.pk)
-                                AppointmentModel.objects.create(candidate_id=new_candidate.pk)
-                            except Exception as e:
-                                return Response({'success': False, 'status': 500, 'error': f'Error saving candidate: {e}'})
-
-                            new_user_count+=1
-
-                        except (KeyError, requests.RequestException):
-                            os.remove(file_path)
-                            return Response({'success': False, 'status': 422, 'error': 'Cannot access URL'})
         except Exception as e:
             return Response({'success': False, 'status': 500, 'error': f'Error processing file: {str(e)}'})
         finally:
             os.remove(file_path)
-            return Response({'success': True, 'status': 200, 'message': f'{new_user_count} Data uploaded.'})
+            created_candidates = CandidateModel.objects.bulk_create(candidates_to_create)
+            ExperiencesModel.objects.bulk_create(experiences_to_save)
+            PreferencesModel.objects.bulk_create(preferences_to_save)
+            EducationModel.objects.bulk_create(education_to_save)
+            created_candidate_ids = [candidate.id for candidate in created_candidates]
+            appointments_to_create = [AppointmentModel(candidate_id=candidate_id) for candidate_id in
+                                      created_candidate_ids]
+            AppointmentModel.objects.bulk_create(appointments_to_create)
+            message = {
+                'message': 'Data uploaded',
+                'count new users': new_user_count,
+                'count candidates exist': similar_candidate
+            }
+            return Response({'success': True, 'status': 200, 'message': message})
 
 
 class ScoreOnlineResume(generics.ListAPIView):
-    queryset = CandidateModel.objects.prefetch_related('experiencesmodel_set','educationmodel_set').all()
+    queryset = CandidateModel.objects.prefetch_related('experiencesmodel_set', 'educationmodel_set').all()
     serializer_class = ScoreSerializer
-
-    # permission_classes = [IsSuperuserOrHR, IsSuperuserOrTD]
+    permission_classes = [IsSuperuserOrHR, IsSuperuserOrTD]
 
     def get(self, request, *args, **kwargs):
         candidates = self.get_queryset()
@@ -253,8 +280,8 @@ class ScoreOnlineResume(generics.ListAPIView):
             if candidate.score is None or candidate.score == 0:
                 educations = candidate.educationmodel_set.all()
                 experiences_count = candidate.experiencesmodel_set.count()
-                calculate_skill_score(candidate, educations, requirement, experiences_count)
-                # candidate.save()
+                candidate.score = calculate_skill_score(candidate, educations, requirement, experiences_count)
+                candidate.save()
                 if candidate.score >= settings.pass_score:
                     print('accepted:Send Interview Invitation date')
                     schedule_interviews(candidate, settings.interview_duration_hours, settings.start_work_time,
@@ -312,6 +339,7 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
             if appointment:
                 appointment.delete()
 
+
 class OldCandidateInvitationAPIView(generics.ListAPIView):
     queryset=CandidateModel.objects.all()
     serializer_class=CandidateSerializer
@@ -341,7 +369,8 @@ class OldCandidateInvitationAPIView(generics.ListAPIView):
 class AppointmentViewSet(viewsets.ModelViewSet):
     queryset = AppointmentModel.objects.filter(interview_start_time__isnull=False)
     serializer_class = AppointmentSerializer
-    permission_classes=[IsAuthenticated]
+    permission_classes = [IsAuthenticated]
+
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
 
@@ -350,9 +379,9 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
 
-
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
 
 class SettingsViewSet(viewsets.ModelViewSet):
     queryset = SettingsModel.objects.all()

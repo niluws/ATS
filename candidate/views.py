@@ -13,7 +13,7 @@ from openpyxl import load_workbook
 from rest_framework import viewsets, generics, filters
 from rest_framework.response import Response
 
-from authentication.permissions import IsSuperuserOrHR, IsAuthenticated,IsSuperuserOrTD
+from authentication.permissions import IsSuperuserOrHR, IsAuthenticated
 from job.models import Requirement
 from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel, SettingsModel
 from .serializers import ExcelFileSerializer, CandidateSerializer, ScoreSerializer, CandidateUpdateSerializer, \
@@ -43,52 +43,63 @@ def calculate_skill_score(candidate,educations,requirement,experiences_count):
     return total_score
 
 
-def schedule_interviews(candidate, interview_duration_hours,start_work,end_word):
-    last_appointment = AppointmentModel.objects.all().exclude(interview_end_time=None).order_by('-interview_end_time').first()
-    start_work_time = timezone.now().replace(hour=start_work, minute=0, second=0, microsecond=0)
-    current_date = timezone.now()
-    candidate_exist=AppointmentModel.objects.filter(interview_start_time__isnull=True,candidate_id=candidate.id).exists()
+def schedule_interviews(candidate, interview_duration_hours, start_work, end_work,current_date,last_appointment):
 
     if last_appointment:
-        if candidate_exist:
 
-            if current_date >= start_work_time:
-                if last_appointment.interview_end_time >= last_appointment.interview_end_time.replace(hour=end_word, minute=0, second=0, microsecond=0):
-                    start_time = last_appointment.interview_end_time.replace(hour=9, minute=0, second=0, microsecond=0) + timezone.timedelta(days=1)
-                    end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
-                    appointment=AppointmentModel.objects.create(candidate_id=candidate.id,
-                                                    interview_start_time=start_time,
-                                                    interview_end_time=end_time)
-                    print(candidate.name ,appointment.interview_start_time ,appointment.interview_end_time)
-                    # EmailMessage(f'Interview Invitation - {candidate.job}',
-                    #              f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to {appointment.interview_end_time}',
-                    #              config.EMAIL_HOST_USER, [candidate.email]).send()
-                else:
-                    start_time = last_appointment.interview_end_time
-                    end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
-                    appointment=AppointmentModel.objects.create(candidate_id=candidate.id,
-                                                    interview_start_time=start_time,
-                                                    interview_end_time=end_time)
-                    print(candidate.name, appointment.interview_start_time, appointment.interview_end_time)
-                    # EmailMessage(f'Interview Invitation - {candidate.job}',
-                    # f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to { appointment.interview_end_time}',
-                    #                  config.EMAIL_HOST_USER, [candidate.email]).send()
+        if last_appointment.interview_end_time >= last_appointment.interview_end_time.replace(hour=end_work, minute=0,
+                                                                                              second=0, microsecond=0):
+            start_time = last_appointment.interview_end_time.replace(hour=start_work, minute=0, second=0,
+                                                                     microsecond=0) + timezone.timedelta(days=1)
+            end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
+            appointment = AppointmentModel.objects.create(candidate_id=candidate.id,
+                                                          interview_start_time=start_time,
+                                                          interview_end_time=end_time)
+            print(candidate.name, appointment.interview_start_time, appointment.interview_end_time)
+            # EmailMessage(f'Interview Invitation - {candidate.job}',
+            #              f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to {appointment.interview_end_time}',
+            #              config.EMAIL_HOST_USER, [candidate.email]).send()
+        else:
+            start_time = last_appointment.interview_end_time
+            end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
+            appointment = AppointmentModel.objects.create(candidate_id=candidate.id,
+                                                          interview_start_time=start_time,
+                                                          interview_end_time=end_time)
+            print(candidate.name, appointment.interview_start_time, appointment.interview_end_time)
+            # EmailMessage(f'Interview Invitation - {candidate.job}',
+            # f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to { appointment.interview_end_time}',
+            #                  config.EMAIL_HOST_USER, [candidate.email]).send()
 
     else:
-        start_time = timezone.now().replace(hour=9, minute=0, second=0, microsecond=0) + timezone.timedelta(days=1)
-        end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
-        appointment=AppointmentModel.objects.create(candidate_id=candidate.id,
-                                        interview_start_time=start_time,
-                                        interview_end_time=end_time)
-        print(candidate.name, appointment.interview_start_time, appointment.interview_end_time)
-        # EmailMessage(f'Interview Invitation - {candidate.job}',
-        #              f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to {appointment.interview_end_time}',
-        #              config.EMAIL_HOST_USER, [candidate.email]).send()
+
+        if current_date >= timezone.now().replace(hour=start_work, minute=0, second=0, microsecond=0):
+
+            start_time = timezone.now().replace(hour=start_work, minute=0, second=0,
+                                                microsecond=0) + timezone.timedelta(days=1)
+            end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
+            appointment = AppointmentModel.objects.create(candidate_id=candidate.id,
+                                                          interview_start_time=start_time,
+                                                          interview_end_time=end_time)
+            print(candidate.name, appointment.interview_start_time, appointment.interview_end_time)
+            # EmailMessage(f'Interview Invitation - {candidate.job}',
+            #              f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to {appointment.interview_end_time}',
+            #              config.EMAIL_HOST_USER, [candidate.email]).send()
+
+        else:
+            start_time = timezone.now().replace(hour=start_work, minute=0, second=0, microsecond=0)
+            end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
+            appointment = AppointmentModel.objects.create(candidate_id=candidate.id,
+                                                          interview_start_time=start_time,
+                                                          interview_end_time=end_time)
+            print(candidate.name, appointment.interview_start_time, appointment.interview_end_time)
+            # EmailMessage(f'Interview Invitation - {candidate.job}',
+            #              f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to {appointment.interview_end_time}',
+            #              config.EMAIL_HOST_USER, [candidate.email]).send()
 
 
 class UploadExcelAPIView(generics.CreateAPIView):
     serializer_class = ExcelFileSerializer
-    permission_classes = [IsSuperuserOrHR]
+    # permission_classes = [IsSuperuserOrHR]
 
     def save_education(self, soup, candidate_id, education_to_save):
         for education in soup.select(
@@ -251,10 +262,6 @@ class UploadExcelAPIView(generics.CreateAPIView):
             ExperiencesModel.objects.bulk_create(experiences_to_save)
             PreferencesModel.objects.bulk_create(preferences_to_save)
             EducationModel.objects.bulk_create(education_to_save)
-            created_candidate_ids = [candidate.id for candidate in created_candidates]
-            appointments_to_create = [AppointmentModel(candidate_id=candidate_id) for candidate_id in
-                                      created_candidate_ids]
-            AppointmentModel.objects.bulk_create(appointments_to_create)
             message = {
                 'message': 'Data uploaded',
                 'count new users': new_user_count,
@@ -263,46 +270,62 @@ class UploadExcelAPIView(generics.CreateAPIView):
             return Response({'success': True, 'status': 200, 'message': message})
 
 
-class ScoreOnlineResume(generics.ListAPIView):
+class ScoreAPIView(generics.ListAPIView):
     queryset = CandidateModel.objects.prefetch_related('experiencesmodel_set', 'educationmodel_set').all()
     serializer_class = ScoreSerializer
-    permission_classes = [IsSuperuserOrHR, IsSuperuserOrTD]
+
+    # permission_classes = [IsSuperuserOrHR, IsSuperuserOrTD]
 
     def get(self, request, *args, **kwargs):
         candidates = self.get_queryset()
         requirement = Requirement.objects.all()
-        settings = SettingsModel.objects.all().first()
-        if settings is None:
-            return Response({'success': False, 'status': 400, 'error': 'You have no data in settings.'})
 
+        updated_candidates = []
         for candidate in candidates:
-
-            if candidate.score is None or candidate.score == 0:
+            if candidate.score is None or candidate.score is 0:
                 educations = candidate.educationmodel_set.all()
                 experiences_count = candidate.experiencesmodel_set.count()
                 candidate.score = calculate_skill_score(candidate, educations, requirement, experiences_count)
-                candidate.save()
-                if candidate.score >= settings.pass_score:
-                    print('accepted:Send Interview Invitation date')
-                    schedule_interviews(candidate, settings.interview_duration_hours, settings.start_work_time,
-                                        settings.end_work_time)
-                else:
+                updated_candidates.append(candidate)
+                if candidate.score == 0:
                     print('rejected')
-                #     EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
-                #                  config.EMAIL_HOST_USER, [candidate.email]).send()
+                    # EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
+                    #              config.EMAIL_HOST_USER, [candidate.email]).send()
 
-        serializer = ScoreSerializer(candidates, many=True)
+        CandidateModel.objects.bulk_update(updated_candidates, ['score'])
 
-        return Response(serializer.data, status=200)
+        return Response({'success': True, 'status': 200, 'message': 'All candidates scored'})
+
+
+class SchedulerAPIView(generics.ListAPIView):
+    queryset = CandidateModel.objects.filter(appointmentmodel__interview_start_time__isnull=True)
+
+    def get(self, request, *args, **kwargs):
+        candidates = self.get_queryset()
+        current_date = timezone.now()
+        settings = SettingsModel.objects.all().first()
+        last_appointment = AppointmentModel.objects.all().order_by(
+            '-interview_end_time').first()
+        count = 0
+        if settings is None:
+            return Response({'success': False, 'status': 400, 'error': 'You have no data in settings.'})
+        for candidate in candidates:
+            if candidate.score >= settings.pass_score:
+                count += 1
+                print('accepted:Send Interview Invitation date')
+                schedule_interviews(candidate, settings.interview_duration_hours, settings.start_work_time,
+                                    settings.end_work_time, current_date, last_appointment)
+
+        return Response({'success': True, 'status': 200, 'message': f'Interview time scheduled for {count} candidates'})
 
 
 class CandidateListAPIView(generics.ListAPIView):
-    queryset=CandidateModel.objects.all()
-    serializer_class=CandidateSerializer
-    filter_backends = [filters.SearchFilter,filters.OrderingFilter]
+    queryset = CandidateModel.objects.all()
+    serializer_class = CandidateSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['job']
     ordering_fields = ['request_date']
-    permission_classes=[IsSuperuserOrHR]
+    permission_classes = [IsSuperuserOrHR]
 
 
 class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):

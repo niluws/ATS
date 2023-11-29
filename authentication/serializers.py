@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from rest_framework.response import Response
+
 from .models import User
 
 
@@ -26,20 +26,21 @@ class LogoutSerializer(serializers.Serializer):
 
 class RefreshTokenSerializer(serializers.Serializer):
     refresh_token = serializers.CharField()
-    
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['profile','first_name','last_name','email']
+        fields = ['profile', 'first_name', 'last_name', 'email']
 
 
 class MeSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = [ 'first_name', 'last_name', 'email']
+        fields = ['first_name', 'last_name', 'email']
+
 
 class VerifyEmailSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = [ 'email']
+        fields = ['email']

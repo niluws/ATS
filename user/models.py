@@ -1,6 +1,9 @@
 from django.db import models
-from job.models import Job, Role
+
 from authentication.models import User
+from job.models import Job, Role
+
+
 class Profile(models.Model):
     EDUCATION_CHOICES = (
         ("DIPLOMA", "Diploma"),

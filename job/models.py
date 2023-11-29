@@ -1,6 +1,8 @@
 from django.db import models
 from django.utils import timezone
+
 from authentication.models import User
+
 
 class Role(models.Model):
     title = models.CharField(max_length=150)
@@ -18,9 +20,9 @@ class Job(models.Model):
 
 
 class Requirement(models.Model):
-    en_title = models.CharField(max_length=150,unique=True)
-    fa_title=models.CharField(max_length=150,unique=True)
-    score=models.IntegerField()
+    en_title = models.CharField(max_length=150, unique=True)
+    fa_title = models.CharField(max_length=150, unique=True)
+    score = models.IntegerField()
 
     def __str__(self):
         return self.en_title
@@ -75,22 +77,22 @@ class NewPositionModel(models.Model):
     hr_approval = models.BooleanField(default=False)
     td_approval = models.BooleanField(default=False)
     budget = models.BigIntegerField()
-    assigned_to_td = models.ForeignKey(User, on_delete=models.CASCADE,null=True, blank=True,related_name='assigned_to_td_set')
-    interviewer=models.ManyToManyField(User,null=True, blank=True)
+    assigned_to_td = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True,
+                                       related_name='assigned_to_td_set')
+    interviewer = models.ManyToManyField(User, null=True, blank=True)
     is_advertised = models.BooleanField(default=False)
-    message=models.TextField(null=True,blank=True)
-    
+    message = models.TextField(null=True, blank=True)
+
     def save(self, *args, **kwargs):
         if self.hr_approval:
             td_user = User.objects.filter(profile__role__title='TD', profile__department=self.department).first()
             if td_user:
                 self.assigned_to_td = td_user
         else:
-            self.assigned_to_td=None
+            self.assigned_to_td = None
 
         super(NewPositionModel, self).save(*args, **kwargs)
 
     class Meta:
         verbose_name = 'new position'
         verbose_name_plural = 'new positions'
-

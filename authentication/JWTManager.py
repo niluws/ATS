@@ -1,14 +1,15 @@
-import jwt
 from datetime import datetime, timedelta
+
+import jwt
 from rest_framework import authentication
-from rest_framework.response import Response
 from rest_framework.exceptions import AuthenticationFailed
+
 
 class AuthHandler(authentication.BaseAuthentication):
     SECRET_KEY = "e850730693d632d699dedab3ced649a8badad345dae49c20ab9989622b840868"
     ALGORITHM = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES = 100
-    REFRESH_TOKEN_EXPIRE_MINUTES = 60*30
+    REFRESH_TOKEN_EXPIRE_MINUTES = 60 * 30
 
     def encode_token(self, data, expire_minutes):
         payload = dict(iss=data)
@@ -52,4 +53,5 @@ class AuthHandler(authentication.BaseAuthentication):
         auth_header = request.META.get('HTTP_AUTHORIZATION')
         if auth_header:
             return self.decode_access_token(auth_header)
-        else:raise AuthenticationFailed(detail='No token found,please authenticate', code=401)
+        else:
+            raise AuthenticationFailed(detail='No token found,please authenticate', code=401)

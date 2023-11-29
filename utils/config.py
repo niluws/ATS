@@ -1,19 +1,19 @@
 import os
-from dotenv import load_dotenv
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 # Load .env file
 env_file = Path(__file__).resolve().parent.parent / "envs" / ".env"
 load_dotenv(env_file)
-
 
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Static
 STATIC_URL = os.getenv('STATIC_URL')
-MEDIA_URL=os.getenv('MEDIA_URL')
-MEDIA_ROOT=os.path.join(BASE_DIR,os.getenv('MEDIA_ROOT'))
+MEDIA_URL = os.getenv('MEDIA_URL')
+MEDIA_ROOT = os.path.join(BASE_DIR, os.getenv('MEDIA_ROOT'))
 # Secret Key
 SECRET_KEY = os.getenv('SECRET_KEY')
 
@@ -24,8 +24,7 @@ DEBUG = os.getenv('DEBUG')
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / 'templates']
-        ,
+        "DIRS": [BASE_DIR / 'templates'],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -58,55 +57,54 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT'))
 
-#redis
-BROKER_URL =os.getenv('BROKER_URL')
-#Internationalization
+# redis
+BROKER_URL = os.getenv('BROKER_URL')
+# Internationalization
 LANGUAGE_CODE = os.getenv('LANGUAGE_CODE')
 TIME_ZONE = os.getenv('TIME_ZONE')
 USE_I18N = os.getenv('USE_I18N')
 USE_TZ = os.getenv('USE_TZ')
-#cache
-CACHES={
+# cache
+CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': os.getenv('LOCATION'),
-        'TIMEOUT':'TIMEOUT',
+        'TIMEOUT': 'TIMEOUT',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
-        
+
     }
 }
-#log
+# log
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'handlers': {
         'file': {
-            'level': 'INFO', 
+            'level': 'INFO',
             'class': 'logging.FileHandler',
             'filename': 'logs/user.log',
         },
     },
     'loggers': {
-        'user_activity': { 
+        'user_activity': {
             'handlers': ['file'],
-            'level': 'INFO', 
+            'level': 'INFO',
             'propagate': False,
         },
     },
 }
-#swagger
+# swagger
 SWAGGER_SETTINGS = {
-   'SECURITY_DEFINITIONS': {
-      'Basic': {
+    'SECURITY_DEFINITIONS': {
+        'Basic': {
             'type': 'basic'
-      },
-      'Bearer': {
+        },
+        'Bearer': {
             'type': 'apiKey',
             'name': 'Authorization',
             'in': 'header'
-      }
-   }
+        }
+    }
 }
-

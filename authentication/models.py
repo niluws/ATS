@@ -4,7 +4,6 @@ from django.db import models
 from django.utils import timezone
 
 
-
 class CustomUserManager(BaseUserManager):
     def _create_user(self, email, password, **extra_fields):
 
@@ -47,6 +46,3 @@ class User(AbstractBaseUser, PermissionsMixin):
     objects = CustomUserManager()
 
     USERNAME_FIELD = 'email'
-
-
-

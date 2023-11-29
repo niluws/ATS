@@ -1,11 +1,12 @@
-from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import permissions
 from rest_framework.exceptions import AuthenticationFailed
+
+from user.models import Profile
 from . import JWTManager
 from .models import User
-from user.models import Profile
 
 jwt_manager = JWTManager.AuthHandler()
+
 
 class IsSuperuserOrHR(permissions.IsAuthenticated):
     def has_permission(self, request, view):
@@ -18,8 +19,9 @@ class IsSuperuserOrHR(permissions.IsAuthenticated):
             if user.is_superuser or profile.job.title == 'HR':
                 return True
 
-        except :
+        except:
             raise AuthenticationFailed(detail='You are not HR or admin', code=401)
+
 
 class IsSuperuserOrTD(permissions.IsAuthenticated):
     def has_permission(self, request, view):
@@ -32,7 +34,7 @@ class IsSuperuserOrTD(permissions.IsAuthenticated):
             if user.is_superuser or profile.role.title == 'TD':
                 return True
 
-        except :
+        except:
             raise AuthenticationFailed(detail='You are not TD or admin', code=401)
 
 
@@ -47,5 +49,5 @@ class IsAuthenticated(permissions.IsAuthenticated):
             if profile:
                 return True
 
-        except :raise AuthenticationFailed(detail='You have no profile', code=401)
-
+        except:
+            raise AuthenticationFailed(detail='You have no profile', code=401)

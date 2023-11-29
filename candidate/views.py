@@ -13,14 +13,25 @@ from openpyxl import load_workbook
 from rest_framework import viewsets, generics, filters
 from rest_framework.response import Response
 
-from authentication.permissions import IsSuperuserOrHR, IsAuthenticated
+from authentication.permissions import IsSuperuserOrHR
 from job.models import Requirement
 from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel, SettingsModel
 from .serializers import ExcelFileSerializer, CandidateSerializer, ScoreSerializer, CandidateUpdateSerializer, \
     AppointmentSerializer, SettingsSerializer
 
 
-def calculate_skill_score(candidate,educations,requirement,experiences_count):
+def calculate_skill_score(candidate, educations, requirement, experiences_count):
+    """
+        Calculate the skill score of a candidate based on their educations, skills, about, languages and experiences.
+
+        Args:
+            candidate: Candidate object.
+            educations: List of EducationModel objects.
+            requirement: List of Requirement objects.
+            experiences_count: Number of experiences.
+            
+        Returns: Total skill score.
+    """
     total_score = experiences_count
 
     for req in requirement:
@@ -38,67 +49,77 @@ def calculate_skill_score(candidate,educations,requirement,experiences_count):
                 if en.lower() in ''.join(skill).lower() or fa in ''.join(skill):
                     if not req_counted:
                         total_score += req.score
-                        req_counted = True
                         break
     return total_score
 
 
-def schedule_interviews(candidate, interview_duration_hours, start_work, end_work,current_date,last_appointment):
+def create_appointment(candidate, start_time, end_time):
+    """
+        Create an appointment for a candidate and email the interview start and end times.
 
+        Args:
+             candidate: Candidate object.
+             start_time: Start time of the interview.
+             end_time: End time of the interview.
+    """
+    appointment = AppointmentModel.objects.create(candidate_id=candidate.id,
+                                                  interview_start_time=start_time,
+                                                  interview_end_time=end_time)
+    print(appointment.interview_start_time, appointment.interview_end_time)
+    # Uncomment the following lines when you are ready to send emails
+    # EmailMessage(f'Interview Invitation - {candidate.job}',
+    #              f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to {appointment.interview_end_time}',
+    #              config.EMAIL_HOST_USER, [candidate.email]).send()
+
+
+def schedule_interviews(candidate, interview_duration_hours, start_work, end_work, current_date):
+    """
+    Schedule interviews for qualified candidates based on settings.
+
+    Args:
+         candidate: Candidate object.
+         interview_duration_hours: Duration of the interview in hours.
+         start_work: Start working time.
+         end_work: End working time.
+         current_date: Current date.
+    """
+
+    last_appointment = AppointmentModel.objects.all().order_by(
+        '-interview_end_time').first()
     if last_appointment:
-
         if last_appointment.interview_end_time >= last_appointment.interview_end_time.replace(hour=end_work, minute=0,
                                                                                               second=0, microsecond=0):
             start_time = last_appointment.interview_end_time.replace(hour=start_work, minute=0, second=0,
                                                                      microsecond=0) + timezone.timedelta(days=1)
             end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
-            appointment = AppointmentModel.objects.create(candidate_id=candidate.id,
-                                                          interview_start_time=start_time,
-                                                          interview_end_time=end_time)
-            print(candidate.name, appointment.interview_start_time, appointment.interview_end_time)
-            # EmailMessage(f'Interview Invitation - {candidate.job}',
-            #              f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to {appointment.interview_end_time}',
-            #              config.EMAIL_HOST_USER, [candidate.email]).send()
+            create_appointment(candidate, start_time, end_time)
         else:
             start_time = last_appointment.interview_end_time
             end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
-            appointment = AppointmentModel.objects.create(candidate_id=candidate.id,
-                                                          interview_start_time=start_time,
-                                                          interview_end_time=end_time)
-            print(candidate.name, appointment.interview_start_time, appointment.interview_end_time)
-            # EmailMessage(f'Interview Invitation - {candidate.job}',
-            # f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to { appointment.interview_end_time}',
-            #                  config.EMAIL_HOST_USER, [candidate.email]).send()
+            create_appointment(candidate, start_time, end_time)
 
     else:
-
         if current_date >= timezone.now().replace(hour=start_work, minute=0, second=0, microsecond=0):
 
             start_time = timezone.now().replace(hour=start_work, minute=0, second=0,
                                                 microsecond=0) + timezone.timedelta(days=1)
             end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
-            appointment = AppointmentModel.objects.create(candidate_id=candidate.id,
-                                                          interview_start_time=start_time,
-                                                          interview_end_time=end_time)
-            print(candidate.name, appointment.interview_start_time, appointment.interview_end_time)
-            # EmailMessage(f'Interview Invitation - {candidate.job}',
-            #              f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to {appointment.interview_end_time}',
-            #              config.EMAIL_HOST_USER, [candidate.email]).send()
-
+            create_appointment(candidate, start_time, end_time)
         else:
             start_time = timezone.now().replace(hour=start_work, minute=0, second=0, microsecond=0)
             end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
-            appointment = AppointmentModel.objects.create(candidate_id=candidate.id,
-                                                          interview_start_time=start_time,
-                                                          interview_end_time=end_time)
-            print(candidate.name, appointment.interview_start_time, appointment.interview_end_time)
-            # EmailMessage(f'Interview Invitation - {candidate.job}',
-            #              f'Hello dear {candidate.name} Scheduled Interview: from {appointment.interview_start_time} to {appointment.interview_end_time}',
-            #              config.EMAIL_HOST_USER, [candidate.email]).send()
+            create_appointment(candidate, start_time, end_time)
 
 
 class UploadExcelAPIView(generics.CreateAPIView):
+    """
+        API View for uploading Excel files with candidate information.
+
+        Handles parsing the link in Excel file and creating candidate objects.
+
+    """
     serializer_class = ExcelFileSerializer
+
     # permission_classes = [IsSuperuserOrHR]
 
     def save_education(self, soup, candidate_id, education_to_save):
@@ -119,6 +140,13 @@ class UploadExcelAPIView(generics.CreateAPIView):
             education_to_save.append(new_education)
 
     def save_preferences(self, soup, candidate_id, preferences_to_save):
+        """
+            Save preference information from the parsed HTML soup.
+
+                 soup: Parsed HTML soup.
+                 candidate_id: ID of the candidate.
+                 preferences_to_save: List to store PreferencesModel objects.
+        """
         output_dict = {}
         for preference in soup.select(
                 'div.card-header:-soup-contains("ترجیحات") + div.card-body div.list-group-item label.d-block'):
@@ -190,7 +218,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
                 soup = BeautifulSoup(response.text, 'html.parser')
                 # url = soup.find(lambda tag: tag.name == 'a' and 'دانلود' in tag.get_text(strip=True))['href']
                 # resume_response = requests.get(url)
-                unique_id=uuid.uuid1()
+                unique_id = uuid.uuid1()
                 candidate_data = {
                     'id': unique_id,
                     'name': row[2].value,
@@ -258,7 +286,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
             return Response({'success': False, 'status': 500, 'error': f'Error processing file: {str(e)}'})
         finally:
             os.remove(file_path)
-            created_candidates = CandidateModel.objects.bulk_create(candidates_to_create)
+            CandidateModel.objects.bulk_create(candidates_to_create)
             ExperiencesModel.objects.bulk_create(experiences_to_save)
             PreferencesModel.objects.bulk_create(preferences_to_save)
             EducationModel.objects.bulk_create(education_to_save)
@@ -271,6 +299,12 @@ class UploadExcelAPIView(generics.CreateAPIView):
 
 
 class ScoreAPIView(generics.ListAPIView):
+    """
+    Calculate and update the skill scores for candidates.
+
+    Methods:
+        get(self, request, *args, **kwargs):Scores and sends a rejection email if the candidate's score is zero.
+    """
     queryset = CandidateModel.objects.prefetch_related('experiencesmodel_set', 'educationmodel_set').all()
     serializer_class = ScoreSerializer
 
@@ -298,14 +332,23 @@ class ScoreAPIView(generics.ListAPIView):
 
 
 class SchedulerAPIView(generics.ListAPIView):
+    """
+        Schedule interviews for qualified candidates.
+
+        Attributes:
+            queryset (QuerySet): A queryset of CandidateModel objects with no scheduled interviews.
+
+        Methods:
+            get(self, request, *args, **kwargs): Schedule interviews based on candidate scores and settings.
+
+    """
     queryset = CandidateModel.objects.filter(appointmentmodel__interview_start_time__isnull=True)
 
     def get(self, request, *args, **kwargs):
         candidates = self.get_queryset()
         current_date = timezone.now()
         settings = SettingsModel.objects.all().first()
-        last_appointment = AppointmentModel.objects.all().order_by(
-            '-interview_end_time').first()
+
         count = 0
         if settings is None:
             return Response({'success': False, 'status': 400, 'error': 'You have no data in settings.'})
@@ -314,7 +357,11 @@ class SchedulerAPIView(generics.ListAPIView):
                 count += 1
                 print('accepted:Send Interview Invitation date')
                 schedule_interviews(candidate, settings.interview_duration_hours, settings.start_work_time,
-                                    settings.end_work_time, current_date, last_appointment)
+                                    settings.end_work_time, current_date)
+
+        if count == 0:
+            return Response(
+                {'success': True, 'status': 400, 'error': f'No interviews scheduled because candidates scores are 0.'})
 
         return Response({'success': True, 'status': 200, 'message': f'Interview time scheduled for {count} candidates'})
 
@@ -328,59 +375,31 @@ class CandidateListAPIView(generics.ListAPIView):
     permission_classes = [IsSuperuserOrHR]
 
 
-class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
-    queryset=CandidateModel.objects.all()
-    serializer_class=CandidateUpdateSerializer
-
-    def perform_update(self, serializer):
-        candidate = serializer.instance
-        candidate_approval = serializer.validated_data.get('candidate_approval')
-
-        serializer.instance.candidate_approval = candidate_approval
-        serializer.instance.save(update_fields=['candidate_approval'])
-
-        resume = serializer.validated_data.get('resume')
-        if resume:
-            jalali_update_date = jdatetime.fromgregorian(datetime=candidate.update_at)
-            formatted_update_date = jalali_update_date.strftime('%Y_%m_%d_%H.%M')
-
-            file_path = f"{candidate.job}/{candidate.name}_{formatted_update_date}.pdf"
-            candidate.resume.save(file_path, resume, save=True)
-        if candidate.candidate_approval:
-            interview_duration_hours=1
-            if candidate.score>=2:
-                schedule_interviews(candidate, interview_duration_hours)
-            else:
-                print(f'Your resume rejected', 'Hello, we may reach out to you again in the future')
-
-        # EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
-        #             config.EMAIL_HOST_USER, [candidate.email]).send()
-
-
-        elif candidate.candidate_approval == False:
-            appointment=AppointmentModel.objects.filter(interview_start_time__isnull=False,candidate_id=candidate.id).first()
-            if appointment:
-                appointment.delete()
-
-
 class OldCandidateInvitationAPIView(generics.ListAPIView):
-    queryset=CandidateModel.objects.all()
-    serializer_class=CandidateSerializer
+    """
+        Send invitations to old candidates for profile updates.
+
+        Methods:
+            get(self, request, *args, **kwargs): Send invitations and list candidates.
+     """
+    queryset = CandidateModel.objects.all()
+    serializer_class = CandidateSerializer
     filter_backends = (DjangoFilterBackend,)
-    filterset_fields = ('job', )
-    permission_classes=[IsAuthenticated]
+    filterset_fields = ('job',)
+    # permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         job_param = request.GET.get('job', '')
         candidates = CandidateModel.objects.filter(job=job_param)
         current_site = get_current_site(self.request)
         for candidate in candidates:
-            self.send_invitation_email(candidate, job_param,current_site,candidate.id)
+            self.send_invitation_email(candidate, job_param, current_site, candidate.id)
 
         return self.list(request, *args, **kwargs)
 
-    def send_invitation_email(self, candidate, job_param,current_site,candidate_id):
-        print(f'Hello {candidate.name} Please consider updating your resume and applying for {job_param} position if you are interested Click on the following link to apply:http://{current_site.domain}/candidate/candidate_update/{candidate_id}',)
+    def send_invitation_email(self, candidate, job_param, current_site, candidate_id):
+        print(
+            f'Hello {candidate.name} Please consider updating your resume and applying for {job_param} position if you are interested Click on the following link to apply:http://{current_site.domain}/candidate/candidate_update/{candidate_id}', )
 
         # EmailMessage('Job Opportunity Update',
         #             f'Hello {candidate.name} \n'/
@@ -389,21 +408,54 @@ class OldCandidateInvitationAPIView(generics.ListAPIView):
         #             config.EMAIL_HOST_USER, [candidate.email]).send()
 
 
+class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
+    """
+       Update candidate information.
+
+       Methods:
+           perform_update(self, serializer): Perform the update of candidate information.
+
+    """
+    queryset = CandidateModel.objects.all()
+    serializer_class = CandidateUpdateSerializer
+
+    def perform_update(self, serializer):
+        candidate = serializer.instance
+        candidate_approval = serializer.validated_data.get('candidate_approval')
+        serializer.instance.candidate_approval = candidate_approval
+        serializer.instance.save(update_fields=['candidate_approval'])
+
+        resume = serializer.validated_data.get('resume')
+
+        settings=SettingsModel.objects.all().first()
+        current_date = timezone.now()
+        if resume:
+            jalali_update_date = jdatetime.fromgregorian(datetime=candidate.update_at)
+            formatted_update_date = jalali_update_date.strftime('%Y_%m_%d_%H.%M')
+
+            file_path = f"{candidate.job}/{candidate.name}_{formatted_update_date}.pdf"
+            candidate.resume.save(file_path, resume, save=True)
+        if candidate.candidate_approval:
+            if candidate.score >= settings.pass_score:
+                schedule_interviews(candidate, settings.interview_duration_hours, settings.start_work_time,
+                                    settings.end_work_time, current_date)
+
+            else:
+                print(f'Your resume rejected', 'Hello, we may reach out to you again in the future')
+
+        # EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
+        #             config.EMAIL_HOST_USER, [candidate.email]).send()
+        elif candidate.candidate_approval == False:
+            appointment = AppointmentModel.objects.filter(interview_start_time__isnull=False,
+                                                          candidate_id=candidate.id).first()
+            if appointment:
+                appointment.delete()
+
+
 class AppointmentViewSet(viewsets.ModelViewSet):
-    queryset = AppointmentModel.objects.filter(interview_start_time__isnull=False)
+    queryset = AppointmentModel.objects.all()
     serializer_class = AppointmentSerializer
-    permission_classes = [IsAuthenticated]
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+    # permission_classes = [IsAuthenticated]
 
 
 class SettingsViewSet(viewsets.ModelViewSet):

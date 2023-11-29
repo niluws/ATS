@@ -1,6 +1,8 @@
 from django.contrib import admin
-from .models import User
+
 from user.models import Profile
+from .models import User
+
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
@@ -9,10 +11,9 @@ class UserAdmin(admin.ModelAdmin):
     search_fields = ('email', 'first_name', 'last_name')
     ordering = ('-date_joined',)
 
+
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'job','role', 'education', 'experience')
+    list_display = ('user', 'job', 'role', 'education', 'experience')
     list_filter = ('education',)
-    list_editable = ( 'job','role')
-
-
+    list_editable = ('job', 'role')

@@ -5,7 +5,7 @@ from .models import CandidateModel, PreferencesModel, EducationModel, Experience
 admin.site.register(PreferencesModel)
 admin.site.register(EducationModel)
 admin.site.register(ExperiencesModel)
-
+admin.site.register(AppointmentModel)
 
 class AppointmentModelInline(admin.TabularInline):
     model = AppointmentModel

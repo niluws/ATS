@@ -1,20 +1,20 @@
 import logging
 import logging.config
-import redis
 import uuid
 from datetime import datetime
 from functools import wraps
 
+import redis
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.mail import EmailMessage
-from rest_framework import generics, views, permissions
+from rest_framework import generics, views
 from rest_framework.response import Response
 
-from user.models import Profile
 from utils import config
 from . import JWTManager
 from .models import User
-from .serializers import RegisterSerializer, LoginSerializer, RefreshTokenSerializer, LogoutSerializer, MeSerializer,VerifyEmailSerializer
+from .serializers import RegisterSerializer, LoginSerializer, RefreshTokenSerializer, LogoutSerializer, MeSerializer, \
+    VerifyEmailSerializer
 
 jwt_manager = JWTManager.AuthHandler()
 
@@ -35,21 +35,16 @@ def log_user_activity(func):
 
 
 def generate_and_send_otp(email, current_site):
-    try:
-        otp = str(uuid.uuid4())
-        r = redis.Redis(host='localhost', port=6379, db=0)
+    otp = str(uuid.uuid4())
+    r = redis.Redis(host='localhost', port=6379, db=0)
+    r.set(email, otp, ex=500)
 
-        r.set(email, otp, ex=500)
+    email_subject = 'Activate Account'
+    email_message = f'Click the following link to activate your account:\n' \
+                    f' http://{current_site.domain}/auth/activate/{otp}'
+    recipient_email = email
 
-        email_subject = 'Activate Account'
-        email_message = f'Click the following link to activate your account:\n' \
-                        f' http://{current_site.domain}/auth/activate/{otp}'
-
-        recipient_email = email
-
-        EmailMessage(email_subject, email_message, config.EMAIL_HOST_USER, [recipient_email]).send()
-    except:
-        return Response({'success': False, 'status': 400, 'error': 'You should active redis at first'})
+    EmailMessage(email_subject, email_message, config.EMAIL_HOST_USER, [recipient_email]).send()
 
 
 class RegisterAPIView(generics.CreateAPIView):
@@ -160,7 +155,7 @@ class MeAPIView(generics.RetrieveUpdateAPIView):
 class RefreshTokenAPIView(generics.CreateAPIView):
     serializer_class = RefreshTokenSerializer
 
-    def create(self, request):
+    def create(self, request, *args, **kwargs):
         refresh_token = request.data.get('refresh_token')
 
         if not refresh_token:
@@ -175,6 +170,7 @@ class RefreshTokenAPIView(generics.CreateAPIView):
 
 
 class VerifyAccountAPIView(views.APIView):
+
     def get(self, request, otp_code):
 
         r = redis.Redis(host='localhost', port=6379, db=0)
@@ -200,14 +196,15 @@ class VerifyEmailAPIView(generics.CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         email = request.data['email']
-        user=User.objects.filter(email=email).first()
-
+        user = User.objects.filter(email=email).first()
         if user:
-            if  user.is_active is False:
+            if user.is_active is False:
                 current_site = get_current_site(self.request)
                 generate_and_send_otp(email, current_site)
                 return Response({'success': True, 'status': 200, 'message': 'Email sent successfully.'})
-            
-            else:return Response({'success': True, 'status': 400, 'message': 'Your account is already activate'})
 
-        else:return Response({'success': True, 'status': 400, 'message': 'Email not found.please register first'})
+            else:
+                return Response({'success': True, 'status': 400, 'message': 'Your account is already activate'})
+
+        else:
+            return Response({'success': True, 'status': 400, 'message': 'Email not found.please register first'})

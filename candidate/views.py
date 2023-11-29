@@ -446,8 +446,7 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
         # EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
         #             config.EMAIL_HOST_USER, [candidate.email]).send()
         elif candidate.candidate_approval == False:
-            appointment = AppointmentModel.objects.filter(interview_start_time__isnull=False,
-                                                          candidate_id=candidate.id).first()
+            appointment = AppointmentModel.objects.filter(candidate_id=candidate.id).first()
             if appointment:
                 appointment.delete()
 
@@ -456,6 +455,17 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     queryset = AppointmentModel.objects.all()
     serializer_class = AppointmentSerializer
     # permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        exist_appointment = AppointmentModel.objects.filter(candidate_id=request.data.get('candidate')).first()
+        if exist_appointment:
+            return Response(
+                {'success': True, 'status': 204, 'message': 'An appointment have already existed for this candidate'})
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=201, headers=headers)
 
 
 class SettingsViewSet(viewsets.ModelViewSet):

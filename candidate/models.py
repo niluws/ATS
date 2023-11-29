@@ -17,7 +17,7 @@ class CandidateModel(models.Model):
     email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=15)
     resume = models.FileField(upload_to='resumes/')
-    score = models.IntegerField(default=0)
+    score = models.IntegerField(null=True, blank=True)
     request_date = models.CharField(max_length=15)
     create_at = models.DateTimeField(auto_now_add=True)
     update_at = models.DateTimeField(auto_now=True)

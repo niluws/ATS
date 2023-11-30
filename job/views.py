@@ -11,13 +11,13 @@ from .serializers import JobSerializer, BasePositionSerializer, HRApprovalSerial
 class NewPositionViewSet(viewsets.ModelViewSet):
     serializer_class = BasePositionSerializer
     queryset = NewPositionModel.objects.all()
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
 
 class HRApproval(generics.RetrieveUpdateAPIView):
     serializer_class = HRApprovalSerializer
     queryset = NewPositionModel.objects.all()
-    permission_classes = [IsSuperuserOrHR]
+    # permission_classes = [IsSuperuserOrHR]
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -59,10 +59,10 @@ class TDApproval(generics.RetrieveUpdateAPIView):
 class JobViewSet(viewsets.ModelViewSet):
     serializer_class = JobSerializer
     queryset = Job.objects.all()
-    permission_classes = [IsSuperuserOrHR]
+    # permission_classes = [IsSuperuserOrHR]
 
 
 class JobRequirementViewSet(viewsets.ModelViewSet):
     queryset = JobRequirement.objects.all()
     serializer_class = JobRequirementSerializer
-    permission_classes = [IsSuperuserOrTD]
+    # permission_classes = [IsSuperuserOrTD]

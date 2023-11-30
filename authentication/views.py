@@ -11,6 +11,7 @@ from rest_framework import generics, views
 from rest_framework.response import Response
 
 from utils import config
+from user.models import Profile
 from . import JWTManager
 from .models import User
 from .serializers import RegisterSerializer, LoginSerializer, RefreshTokenSerializer, LogoutSerializer, MeSerializer, \
@@ -24,10 +25,12 @@ def log_user_activity(func):
     def wrapper_func(self, request, *args, **kwargs):
         response = func(self, request, *args, **kwargs)
         logger = logging.getLogger("user_activity")
-        user = dict(response.data).get("message").get("user_id")
-        message = dict(response.data).get("message").get("message")
-        asctime = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        logger.info(f"{asctime} - INFO - user_id: {user}, {message} ")
+        message = response.data.get("message")
+        if message:
+            user = message.get("user_id")
+            message = message.get("message")
+            asctime = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            logger.info(f"{asctime} - INFO - user_id: {user}, {message} ")
 
         return response
 
@@ -69,7 +72,7 @@ class RegisterAPIView(generics.CreateAPIView):
             user = serializer.save()
             user.set_password(serializer.validated_data['password'])
             user.save()
-
+            user.profile = Profile.objects.create(user=user)
             message = {
                 'user_id': user.pk,
                 'message': 'Registered successfully',
@@ -106,11 +109,12 @@ class LoginAPIView(generics.CreateAPIView):
                     'data': login_token,
                     'user_id': user.pk,
                 }
+
                 return Response({'success': True, 'status': 200, 'message': message})
             else:
-                return Response({'success': False, 'status': 401, 'error': 'Chack your email and verify your account'})
+                return Response({'success': False, 'status': 401, 'error': 'Verify your account'})
         else:
-            return Response({'success': False, 'status': 401, 'error': 'Email not found. Check your email'})
+            return Response({'success': False, 'status': 401, 'error': 'Email not found.'})
 
 
 class LogoutAPIView(generics.GenericAPIView):

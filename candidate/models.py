@@ -1,4 +1,5 @@
 import uuid
+
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
@@ -74,3 +75,13 @@ class AppointmentModel(models.Model):
 
     def __str__(self):
         return f"{self.candidate.name} - {self.interview_start_time}"
+
+
+class StatusModel(models.Model):
+    STATUS_CHOICES = (
+        ("WI", "Waiting for interview"),
+        ("R", "Rejected"),
+        ("H", "Hired"),
+    )
+    candidate = models.OneToOneField(CandidateModel, on_delete=models.CASCADE)
+    status = models.CharField(max_length=2, choices=STATUS_CHOICES)

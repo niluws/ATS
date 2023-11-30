@@ -11,13 +11,14 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from jdatetime import datetime as jdatetime
 from openpyxl import load_workbook
-from rest_framework import viewsets, generics, filters
+from rest_framework import viewsets, generics, filters, views
 from rest_framework.response import Response
 
 from authentication.permissions import IsSuperuserOrHR
 from job.models import Requirement
 from utils import config
-from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel, SettingsModel
+from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel,\
+    SettingsModel, StatusModel
 from .serializers import ExcelFileSerializer, CandidateSerializer, ScoreSerializer, CandidateUpdateSerializer, \
     AppointmentSerializer, SettingsSerializer
 
@@ -328,21 +329,16 @@ class ScoreAPIView(generics.ListAPIView):
         return Response({'success': True, 'status': 200, 'message': 'All candidates scored'})
 
 
-class SchedulerAPIView(generics.ListAPIView):
+class SchedulerAPIView(views.APIView):
     """
         Schedule interviews for qualified candidates.
 
-        Attributes:
-            queryset (QuerySet): A queryset of CandidateModel objects with no scheduled interviews.
-
         Methods:
-            get(self, request, *args, **kwargs): Schedule interviews based on candidate scores and settings.
-
+            get(): Schedule interviews based on candidate scores and settings.
     """
-    queryset = CandidateModel.objects.filter(appointmentmodel__interview_start_time__isnull=True)
+    def get(self, request):
+        candidates = CandidateModel.objects.filter(appointmentmodel__interview_start_time__isnull=True)
 
-    def get(self, request, *args, **kwargs):
-        candidates = self.get_queryset()
         current_date = timezone.now()
         settings = SettingsModel.objects.all().first()
 
@@ -362,7 +358,7 @@ class SchedulerAPIView(generics.ListAPIView):
 
         if count == 0:
             return Response(
-                {'success': True, 'status': 400, 'error': f'No interviews scheduled because candidates scores are 0.'})
+                {'success': True, 'status': 400, 'error': f'No interviews scheduled because all candidates scores are eligible or have scheduled .'})
 
         return Response({'success': True, 'status': 200, 'message': f'Interview time scheduled for {count} candidates'})
 
@@ -373,7 +369,7 @@ class CandidateListAPIView(generics.ListAPIView):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['job']
     ordering_fields = ['request_date']
-    permission_classes = [IsSuperuserOrHR]
+    # permission_classes = [IsSuperuserOrHR]
 
 
 class OldCandidateInvitationAPIView(generics.ListAPIView):
@@ -440,7 +436,6 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
             candidate.resume.save(file_path, resume, save=True)
 
         if exist_appointment is None:
-
             if candidate.candidate_approval:
                 #todo in this view scoring should be based on pdf resume
                 #todo below code is calculate online resume so it will remove
@@ -456,7 +451,7 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
                     # EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
                     #              config.EMAIL_HOST_USER, [candidate.email]).send()
 
-            elif candidate.candidate_approval == False:
+        elif candidate.candidate_approval == False:
                 appointment = AppointmentModel.objects.filter(candidate_id=candidate.id).first()
                 if appointment:
                     appointment.delete()

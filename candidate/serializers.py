@@ -41,16 +41,16 @@ class ScoreSerializer(serializers.ModelSerializer):
 
 class CandidateUpdateSerializer(serializers.ModelSerializer):
     resume = serializers.FileField(required=False)
-    status = serializers.CharField(source='statusmodel.status',read_only=True)
+    status = serializers.CharField(source='statusmodel.status', read_only=True)
 
     class Meta:
         model = CandidateModel
         fields = ['name', 'job', 'email', 'phone_number',
                   'province', 'location', 'marital', 'update_at',
-                  'birthdate', 'gender', 'resume', 'candidate_approval','status']
+                  'birthdate', 'gender', 'resume', 'candidate_approval', 'status','languages','skills']
         read_only_fields = ['name', 'job', 'email', 'phone_number',
                             'province', 'location', 'marital', 'update_at',
-                            'birthdate', 'gender','status']
+                            'birthdate', 'gender', 'status','languages']
 
 
 class AppointmentSerializer(serializers.ModelSerializer):

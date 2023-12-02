@@ -439,7 +439,12 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
         candidate = serializer.instance
         candidate_approval = serializer.validated_data.get('candidate_approval')
         serializer.instance.candidate_approval = candidate_approval
-        serializer.instance.save(update_fields=['candidate_approval'])
+
+        skills = serializer.validated_data.get('skills')
+        serializer.instance.skills = skills
+
+        serializer.instance.save(update_fields=['candidate_approval', 'skills'])
+
         exist_appointment = AppointmentModel.objects.filter(candidate_id=candidate.id).first()
 
         resume = serializer.validated_data.get('resume')

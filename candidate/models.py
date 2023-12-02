@@ -85,3 +85,4 @@ class StatusModel(models.Model):
     )
     candidate = models.OneToOneField(CandidateModel, on_delete=models.CASCADE)
     status = models.CharField(max_length=2, choices=STATUS_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)

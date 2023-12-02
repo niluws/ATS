@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.files.storage import default_storage
 from django.core.mail import EmailMessage
+from django.db.models import Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from jdatetime import datetime as jdatetime
@@ -300,14 +301,14 @@ class UploadExcelAPIView(generics.CreateAPIView):
             return Response({'success': True, 'status': 200, 'message': message})
 
 
-class ScoreAPIView(generics.ListAPIView):
+class NewCandidateScoreAPIView(generics.ListAPIView):
     """
     Calculate and update the skill scores for candidates.
 
     Methods:
         get(self, request, *args, **kwargs):Scores and sends a rejection email if the candidate's score is zero.
     """
-    queryset = CandidateModel.objects.prefetch_related('experiencesmodel_set', 'educationmodel_set').all()
+    queryset = CandidateModel.objects.prefetch_related('experiencesmodel_set', 'educationmodel_set').filter(score=None)
     serializer_class = ScoreSerializer
     # permission_classes = [IsSuperuserOrHR, IsSuperuserOrTD]
 
@@ -315,18 +316,22 @@ class ScoreAPIView(generics.ListAPIView):
         candidates = self.get_queryset()
         requirement = Requirement.objects.all()
 
+        count = 0
         updated_candidates = []
         for candidate in candidates:
-            if candidate.score is None:
-                educations = candidate.educationmodel_set.all()
-                experiences_count = candidate.experiencesmodel_set.count()
-                candidate.score = calculate_skill_score(candidate, educations, requirement, experiences_count)
-                updated_candidates.append(candidate)
-
+            educations = candidate.educationmodel_set.all()
+            experiences_count = candidate.experiencesmodel_set.count()
+            candidate.score = calculate_skill_score(candidate, educations, requirement, experiences_count)
+            updated_candidates.append(candidate)
+            count += 1
 
         CandidateModel.objects.bulk_update(updated_candidates, ['score'])
 
-        return Response({'success': True, 'status': 200, 'message': 'All candidates scored'})
+        if count == 0:
+            return Response(
+                {'success': True, 'status': 400, 'error': 'All candidates have already scored.'})
+
+        return Response({'success': True, 'status': 200, 'message': f'{count} candidates scored'})
 
 
 class SchedulerAPIView(views.APIView):
@@ -337,7 +342,7 @@ class SchedulerAPIView(views.APIView):
             get(): Schedule interviews based on candidate scores and settings.
     """
     def get(self, request):
-        candidates = CandidateModel.objects.filter(appointmentmodel__interview_start_time__isnull=True)
+        candidates = CandidateModel.objects.filter(Q(appointmentmodel__interview_start_time__isnull=True) | Q(statusmodel__status='R'))
 
         current_date = timezone.now()
         settings = SettingsModel.objects.all().first()
@@ -349,16 +354,31 @@ class SchedulerAPIView(views.APIView):
             if candidate.score >= settings.pass_score:
                 count += 1
                 print('accepted:Send Interview Invitation date')
+
                 schedule_interviews(candidate, settings.interview_duration_hours, settings.start_work_time,
                                     settings.end_work_time, current_date)
+                try:
+                    status_model = StatusModel.objects.get(candidate_id=candidate.id)
+                    status_model.status = 'WI'
+                    status_model.save()
+                except StatusModel.DoesNotExist:
+                    StatusModel.objects.create(candidate_id=candidate.id, status='WI')
+
             else:
                 print('rejected')
+                try:
+                    status_model = StatusModel.objects.get(candidate_id=candidate.id)
+                    status_model.status = 'R'
+                    status_model.save()
+                except StatusModel.DoesNotExist:
+                    StatusModel.objects.create(candidate_id=candidate.id, status='R')
+
                 # EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
                 #              config.EMAIL_HOST_USER, [candidate.email]).send()
 
         if count == 0:
             return Response(
-                {'success': True, 'status': 400, 'error': f'No interviews scheduled because all candidates scores are eligible or have scheduled .'})
+                {'success': True, 'status': 400, 'error': f'No interviews scheduled because candidates score are not eligible or have already scheduled .'})
 
         return Response({'success': True, 'status': 200, 'message': f'Interview time scheduled for {count} candidates'})
 
@@ -369,6 +389,7 @@ class CandidateListAPIView(generics.ListAPIView):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['job']
     ordering_fields = ['request_date']
+
     # permission_classes = [IsSuperuserOrHR]
 
 
@@ -379,7 +400,7 @@ class OldCandidateInvitationAPIView(generics.ListAPIView):
         Methods:
             get(self, request, *args, **kwargs): Send invitations and list candidates.
      """
-    queryset = CandidateModel.objects.all()
+    queryset = CandidateModel.objects.filter(statusmodel__status='R')
     serializer_class = CandidateSerializer
     filter_backends = (DjangoFilterBackend,)
     filterset_fields = ('job',)
@@ -387,7 +408,7 @@ class OldCandidateInvitationAPIView(generics.ListAPIView):
 
     def get(self, request, *args, **kwargs):
         job_param = request.GET.get('job', '')
-        candidates = CandidateModel.objects.filter(job=job_param)
+        candidates = CandidateModel.objects.filter(job=job_param, statusmodel__status='R')
         current_site = get_current_site(self.request)
         for candidate in candidates:
             self.send_invitation_email(candidate, job_param, current_site, candidate.id)
@@ -443,18 +464,39 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
                 candidate.save(update_fields=['score'])
 
                 if candidate.score >= settings.pass_score:
+                    try:
+                        status_model = StatusModel.objects.get(candidate_id=candidate.id)
+                        status_model.status = 'WI'
+                        status_model.save()
+                    except StatusModel.DoesNotExist:
+                        StatusModel.objects.create(candidate_id=candidate.id, status='WI')
+
                     schedule_interviews(candidate, settings.interview_duration_hours, settings.start_work_time,
                                         settings.end_work_time, current_date)
                 elif candidate.score is None or candidate.score <= settings.pass_score:
+                    try:
+                        status_model = StatusModel.objects.get(candidate_id=candidate.id)
+                        status_model.status = 'R'
+                        status_model.save()
+                    except StatusModel.DoesNotExist:
+                        StatusModel.objects.create(candidate_id=candidate.id, status='R')
+
                     print(f'Your resume rejected', 'Hello, we may reach out to you again in the future')
 
                     # EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
                     #              config.EMAIL_HOST_USER, [candidate.email]).send()
 
         elif candidate.candidate_approval == False:
-                appointment = AppointmentModel.objects.filter(candidate_id=candidate.id).first()
-                if appointment:
-                    appointment.delete()
+            try:
+                status_model = StatusModel.objects.get(candidate_id=candidate.id)
+                status_model.status = 'R'
+                status_model.save()
+            except StatusModel.DoesNotExist:
+                StatusModel.objects.create(candidate_id=candidate.id, status='R')
+
+            appointment = AppointmentModel.objects.filter(candidate_id=candidate.id).first()
+            if appointment:
+                appointment.delete()
 
 
 class AppointmentViewSet(viewsets.ModelViewSet):

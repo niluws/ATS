@@ -8,6 +8,8 @@ class ExcelFileSerializer(serializers.Serializer):
 
 
 class CandidateSerializer(serializers.ModelSerializer):
+    status = serializers.CharField(source='statusmodel.status')
+
     class Meta:
         model = CandidateModel
         fields = '__all__'
@@ -39,15 +41,16 @@ class ScoreSerializer(serializers.ModelSerializer):
 
 class CandidateUpdateSerializer(serializers.ModelSerializer):
     resume = serializers.FileField(required=False)
+    status = serializers.CharField(source='statusmodel.status',read_only=True)
 
     class Meta:
         model = CandidateModel
         fields = ['name', 'job', 'email', 'phone_number',
                   'province', 'location', 'marital', 'update_at',
-                  'birthdate', 'gender', 'resume', 'candidate_approval']
+                  'birthdate', 'gender', 'resume', 'candidate_approval','status']
         read_only_fields = ['name', 'job', 'email', 'phone_number',
                             'province', 'location', 'marital', 'update_at',
-                            'birthdate', 'gender']
+                            'birthdate', 'gender','status']
 
 
 class AppointmentSerializer(serializers.ModelSerializer):

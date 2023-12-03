@@ -1,5 +1,4 @@
 from django.db import models
-from django.utils import timezone
 
 from authentication.models import User
 
@@ -13,7 +12,7 @@ class Role(models.Model):
 
 class Job(models.Model):
     title = models.CharField(max_length=150)
-    join_date = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.title
@@ -64,7 +63,7 @@ class NewPositionModel(models.Model):
         ("VOLLABOR", "Vollabor"),
         ("VISERA", "Visera"),
     )
-    create_at = models.DateTimeField(default=timezone.now)
+    create_at = models.DateTimeField(auto_now_add=True)
     position_title = models.OneToOneField(Job, on_delete=models.CASCADE)
     contract_type = models.CharField(max_length=9, choices=CONTRACT_TYPE_CHOICES)
     status = models.CharField(max_length=8, choices=STATUS_CHOICES, null=True, blank=True)

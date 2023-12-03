@@ -76,25 +76,6 @@ CACHES = {
 
     }
 }
-# log
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': 'logs/user.log',
-        },
-    },
-    'loggers': {
-        'user_activity': {
-            'handlers': ['file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-    },
-}
 # swagger
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {

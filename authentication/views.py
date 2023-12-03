@@ -1,7 +1,4 @@
-import logging
-import logging.config
 import uuid
-from datetime import datetime
 from functools import wraps
 
 import redis
@@ -13,7 +10,7 @@ from rest_framework.response import Response
 from utils import config
 from user.models import Profile
 from . import JWTManager
-from .models import User
+from .models import User, LogModel
 from .serializers import RegisterSerializer, LoginSerializer, RefreshTokenSerializer, LogoutSerializer, MeSerializer, \
     VerifyEmailSerializer
 
@@ -24,13 +21,11 @@ def log_user_activity(func):
     @wraps(func)
     def wrapper_func(self, request, *args, **kwargs):
         response = func(self, request, *args, **kwargs)
-        logger = logging.getLogger("user_activity")
         message = response.data.get("message")
         if message:
-            user = message.get("user_id")
+            user_id = message.get("user_id")
             message = message.get("message")
-            asctime = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-            logger.info(f"{asctime} - INFO - user_id: {user}, {message} ")
+            LogModel.objects.create(event=message, user_id=user_id)
 
         return response
 
@@ -173,7 +168,7 @@ class RefreshTokenAPIView(generics.CreateAPIView):
             return Response({'success': False, 'status': 401, 'error': 'You are not authorized'})
 
 
-class VerifyAccountAPIView(views.APIView):
+class ActiveAccountAPIView(views.APIView):
 
     def get(self, request, otp_code):
 

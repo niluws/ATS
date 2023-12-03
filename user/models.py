@@ -23,6 +23,7 @@ class Profile(models.Model):
     education = models.CharField(max_length=9, choices=EDUCATION_CHOICES, default="", null=True, blank=True)
     experience = models.IntegerField(null=True, blank=True)
     department = models.CharField(max_length=8, choices=DEPARTMENT_CHOICES, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = (("role", "department"),)

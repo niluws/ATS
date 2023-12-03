@@ -12,7 +12,7 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from jdatetime import datetime as jdatetime
 from openpyxl import load_workbook
-from rest_framework import viewsets, generics, filters, views
+from rest_framework import viewsets, generics, filters, views, parsers
 from rest_framework.response import Response
 
 from authentication.permissions import IsSuperuserOrHR
@@ -124,6 +124,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
     """
     serializer_class = ExcelFileSerializer
     # permission_classes = [IsSuperuserOrHR]
+    parser_classes = (parsers.MultiPartParser,)
 
     def save_education(self, soup, candidate_id, education_to_save):
         for education in soup.select(
@@ -400,7 +401,7 @@ class OldCandidateInvitationAPIView(generics.ListAPIView):
         Methods:
             get(self, request, *args, **kwargs): Send invitations and list candidates.
      """
-    queryset = CandidateModel.objects.filter(statusmodel__status='R')
+    queryset = CandidateModel.objects.filter(Q(appointmentmodel__interview_start_time__isnull=True) | Q(statusmodel__status='R'))
     serializer_class = CandidateSerializer
     filter_backends = (DjangoFilterBackend,)
     filterset_fields = ('job',)
@@ -408,7 +409,7 @@ class OldCandidateInvitationAPIView(generics.ListAPIView):
 
     def get(self, request, *args, **kwargs):
         job_param = request.GET.get('job', '')
-        candidates = CandidateModel.objects.filter(job=job_param, statusmodel__status='R')
+        candidates = CandidateModel.objects.filter(job=job_param).filter(Q(appointmentmodel__interview_start_time__isnull=True) | Q(statusmodel__status='R'))
         current_site = get_current_site(self.request)
         for candidate in candidates:
             self.send_invitation_email(candidate, job_param, current_site, candidate.id)
@@ -434,6 +435,7 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
     """
     queryset = CandidateModel.objects.all()
     serializer_class = CandidateUpdateSerializer
+    parser_classes = (parsers.MultiPartParser,)
 
     def perform_update(self, serializer):
         candidate = serializer.instance
@@ -443,7 +445,13 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
         skills = serializer.validated_data.get('skills')
         serializer.instance.skills = skills
 
-        serializer.instance.save(update_fields=['candidate_approval', 'skills'])
+        languages = serializer.validated_data.get('languages')
+        serializer.instance.languages = languages
+
+        about = serializer.validated_data.get('about')
+        serializer.instance.about = about
+
+        serializer.instance.save(update_fields=['candidate_approval', 'skills', 'languages', 'about'])
 
         exist_appointment = AppointmentModel.objects.filter(candidate_id=candidate.id).first()
 
@@ -463,8 +471,6 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
 
         if exist_appointment is None:
             if candidate.candidate_approval:
-                #todo in this view scoring should be based on pdf resume
-                #todo below code is calculate online resume so it will remove
                 candidate.score = calculate_skill_score(candidate, educations, requirement, experiences_count)
                 candidate.save(update_fields=['score'])
 

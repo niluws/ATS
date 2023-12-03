@@ -9,6 +9,7 @@ from django.core.files.storage import default_storage
 from django.core.mail import EmailMessage
 from django.db.models import Q
 from django.utils import timezone
+from django.core.files.base import ContentFile
 from django_filters.rest_framework import DjangoFilterBackend
 from jdatetime import datetime as jdatetime
 from openpyxl import load_workbook
@@ -95,11 +96,11 @@ def schedule_interviews(candidate, interview_duration_hours, start_work, end_wor
                                                                                               second=0, microsecond=0):
             start_time = last_appointment.interview_end_time.replace(hour=start_work, minute=0, second=0,
                                                                      microsecond=0) + timezone.timedelta(days=1)
-            end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
+            end_time = start_time + timezone.timedelta(minutes=interview_duration_hours)
             create_appointment(candidate, start_time, end_time)
         else:
             start_time = last_appointment.interview_end_time
-            end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
+            end_time = start_time + timezone.timedelta(minutes=interview_duration_hours)
             create_appointment(candidate, start_time, end_time)
 
     else:
@@ -107,11 +108,11 @@ def schedule_interviews(candidate, interview_duration_hours, start_work, end_wor
 
             start_time = current_date.replace(hour=start_work, minute=0, second=0,
                                                 microsecond=0) + timezone.timedelta(days=1)
-            end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
+            end_time = start_time + timezone.timedelta(minutes=interview_duration_hours)
             create_appointment(candidate, start_time, end_time)
         else:
             start_time = current_date.replace(hour=start_work, minute=0, second=0, microsecond=0)
-            end_time = start_time + timezone.timedelta(hours=interview_duration_hours)
+            end_time = start_time + timezone.timedelta(minutes=interview_duration_hours)
             create_appointment(candidate, start_time, end_time)
 
 
@@ -220,8 +221,8 @@ class UploadExcelAPIView(generics.CreateAPIView):
             try:
                 response = requests.get(hyperlink.target)
                 soup = BeautifulSoup(response.text, 'html.parser')
-                # url = soup.find(lambda tag: tag.name == 'a' and 'دانلود' in tag.get_text(strip=True))['href']
-                # resume_response = requests.get(url)
+                url = soup.find(lambda tag: tag.name == 'a' and 'دانلود' in tag.get_text(strip=True))['href']
+                resume_response = requests.get(url)
                 unique_id = uuid.uuid1()
                 candidate_data = {
                     'id': unique_id,
@@ -230,8 +231,8 @@ class UploadExcelAPIView(generics.CreateAPIView):
                     'phone_number': row[3].value,
                     'email': user_email,
                     'request_date': row[5].value,
-                    # 'resume': ContentFile(resume_response.content,
-                    #                       name=f"{row[1].value}/{row[2].value}.pdf") if resume_response else None,
+                    'resume': ContentFile(resume_response.content,
+                                          name=f"{row[1].value}/{row[2].value}.pdf") if resume_response else None,
                     'job_status': self.extract_data(soup, 'وضعیت اشتغال'),
                     'last_company': self.extract_data(soup, 'شرکت'),
                     'education_level': self.extract_data(soup, 'تحصیلی'),
@@ -251,7 +252,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
                 self.save_preferences(soup, unique_id, preferences_to_save)
                 self.save_education(soup, unique_id, education_to_save)
 
-            except (KeyError, requests.RequestException):
+            except :
                 os.remove(file_path)
                 return Response({'success': False, 'status': 422, 'error': 'Cannot access URL'})
 

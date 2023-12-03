@@ -90,6 +90,9 @@ class NewPositionModel(models.Model):
         else:
             self.assigned_to_td = None
 
+        if not self.td_approval:
+            self.interviewer.clear()
+
         super(NewPositionModel, self).save(*args, **kwargs)
 
     class Meta:

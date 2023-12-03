@@ -67,7 +67,7 @@ class RegisterAPIView(generics.CreateAPIView):
             user = serializer.save()
             user.set_password(serializer.validated_data['password'])
             user.save()
-            user.profile = Profile.objects.create(user=user)
+
             message = {
                 'user_id': user.pk,
                 'message': 'Registered successfully',

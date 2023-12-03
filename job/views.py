@@ -1,4 +1,4 @@
-from rest_framework import viewsets, generics
+from rest_framework import viewsets, generics, parsers
 from rest_framework.response import Response
 
 from authentication.models import User
@@ -12,12 +12,14 @@ class NewPositionViewSet(viewsets.ModelViewSet):
     serializer_class = BasePositionSerializer
     queryset = NewPositionModel.objects.all()
     # permission_classes = [IsAuthenticated]
+    parser_classes = (parsers.MultiPartParser,)
 
 
 class HRApproval(generics.RetrieveUpdateAPIView):
     serializer_class = HRApprovalSerializer
     queryset = NewPositionModel.objects.all()
     # permission_classes = [IsSuperuserOrHR]
+    parser_classes = (parsers.MultiPartParser,)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)

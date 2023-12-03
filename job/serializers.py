@@ -6,8 +6,8 @@ from .models import Job, NewPositionModel, Requirement, JobRequirement
 class BasePositionSerializer(serializers.ModelSerializer):
     class Meta:
         model = NewPositionModel
-        fields = ['position_title', 'contract_type', 'reason', 'education_level', 'experience_level', 'department',
-                  'quantity', 'budget']
+        fields = ['id', 'position_title', 'contract_type', 'reason', 'education_level', 'experience_level',
+                  'department', 'quantity', 'budget']
 
 
 class HRApprovalSerializer(BasePositionSerializer):
@@ -20,6 +20,12 @@ class TDApprovalSerializer(HRApprovalSerializer):
     class Meta(HRApprovalSerializer.Meta):
         fields = HRApprovalSerializer.Meta.fields + ['interviewer', 'is_advertised', 'td_approval', 'message']
         read_only_fields = HRApprovalSerializer.Meta.fields + ['is_advertised']
+
+    def update(self, instance, validated_data):
+        if not validated_data.get('td_approval', instance.td_approval):
+            validated_data.pop('interviewer')
+
+        return super().update(instance, validated_data)
 
 
 class JobSerializer(serializers.ModelSerializer):

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import User
+from .models import User, LogModel
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -44,3 +44,9 @@ class VerifyEmailSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['email']
+
+
+class LogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LogModel
+        fields = '__all__'

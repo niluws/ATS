@@ -12,7 +12,7 @@ from user.models import Profile
 from . import JWTManager
 from .models import User, LogModel
 from .serializers import RegisterSerializer, LoginSerializer, RefreshTokenSerializer, LogoutSerializer, MeSerializer, \
-    VerifyEmailSerializer
+    VerifyEmailSerializer, LogSerializer
 
 jwt_manager = JWTManager.AuthHandler()
 
@@ -207,3 +207,8 @@ class VerifyEmailAPIView(generics.CreateAPIView):
 
         else:
             return Response({'success': True, 'status': 400, 'message': 'Email not found.please register first'})
+
+
+class LogAPIView(generics.ListAPIView):
+    queryset = LogModel.objects.all()
+    serializer_class = LogSerializer

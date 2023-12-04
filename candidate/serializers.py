@@ -54,6 +54,13 @@ class CandidateUpdateSerializer(serializers.ModelSerializer):
                             'birthdate', 'gender', 'status']
 
 
+class PDFScoreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CandidateModel
+        fields = ['id', 'resume', 'score', 'PDF_score']
+        read_only_fields = ['score', 'resume']
+
+
 class AppointmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = AppointmentModel

@@ -35,6 +35,7 @@ class CandidateModel(models.Model):
     languages = ArrayField(models.CharField(max_length=150), null=True, blank=True)
     about = models.TextField(null=True, blank=True)
     candidate_approval = models.BooleanField(null=True, blank=True)
+    PDF_score = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
         return self.name
@@ -47,6 +48,9 @@ class ExperiencesModel(models.Model):
     start_at = models.CharField(max_length=150, null=True, blank=True)
     end_at = models.CharField(max_length=150, null=True, blank=True)
     duration = models.CharField(max_length=150, null=True, blank=True)
+
+    def __str__(self):
+        return self.candidate.name
 
 
 class PreferencesModel(models.Model):

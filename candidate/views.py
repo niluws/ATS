@@ -22,7 +22,7 @@ from utils import config
 from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel,\
     SettingsModel, StatusModel
 from .serializers import ExcelFileSerializer, CandidateSerializer, ScoreSerializer, CandidateUpdateSerializer, \
-    AppointmentSerializer, SettingsSerializer
+    AppointmentSerializer, SettingsSerializer, PDFScoreSerializer
 
 
 def calculate_skill_score(candidate, educations, requirement, experiences_count):
@@ -38,13 +38,14 @@ def calculate_skill_score(candidate, educations, requirement, experiences_count)
         Returns: Total skill score.
     """
     total_score = experiences_count
-
+    print(experiences_count)
     for req in requirement:
         en, fa = req.en_title, req.fa_title
         req_counted = False
         for edu in educations:
             if en.lower() in ''.join([edu.level, edu.major]).lower() or fa in ''.join([edu.level, edu.major]):
                 if not req_counted:
+                    print(fa)
                     total_score += req.score
                     req_counted = True
                     break
@@ -53,6 +54,7 @@ def calculate_skill_score(candidate, educations, requirement, experiences_count)
             if skill:
                 if en.lower() in ''.join(skill).lower() or fa in ''.join(skill):
                     if not req_counted:
+                        print(fa)
                         total_score += req.score
                         break
     return total_score
@@ -338,23 +340,27 @@ class NewCandidateScoreAPIView(generics.ListAPIView):
 
 class SchedulerAPIView(views.APIView):
     """
-        Schedule interviews for qualified candidates.
+        Schedule interviews for new candidates.
 
         Methods:
-            get(): Schedule interviews based on candidate scores and settings.
+            get(): Schedule interviews based on candidate scores .
     """
     def get(self, request):
-        candidates = CandidateModel.objects.filter(Q(appointmentmodel__interview_start_time__isnull=True) | Q(statusmodel__status='R'))
+        candidates = CandidateModel.objects.filter(appointmentmodel__interview_start_time__isnull=True)
 
         current_date = timezone.now()
         settings = SettingsModel.objects.all().first()
 
-        count = 0
+        count_appointment = 0
+        no_score=0
         if settings is None:
             return Response({'success': False, 'status': 400, 'error': 'You have no data in settings.'})
         for candidate in candidates:
-            if candidate.score >= settings.pass_score:
-                count += 1
+            if candidate.PDF_score is None:
+                no_score+=1
+                continue
+            if candidate.PDF_score >= settings.pass_score:
+                count_appointment += 1
                 print('accepted:Send Interview Invitation date')
 
                 schedule_interviews(candidate, settings.interview_duration_hours, settings.start_work_time,
@@ -378,11 +384,20 @@ class SchedulerAPIView(views.APIView):
                 # EmailMessage(f'Your resume rejected', 'Hello, we may reach out to you again in the future',
                 #              config.EMAIL_HOST_USER, [candidate.email]).send()
 
-        if count == 0:
+        if count_appointment == 0:
+            message = {
+                'error': 'No interview scheduled!',
+                'reason1': 'All eligible candidates have already scheduled',
+                'reason2': 'HR have not scored to PDFs',
+                'reason3': 'No eligible candidates in DB'
+            }
             return Response(
-                {'success': True, 'status': 400, 'error': f'No interviews scheduled because candidates score are not eligible or have already scheduled .'})
-
-        return Response({'success': True, 'status': 200, 'message': f'Interview time scheduled for {count} candidates'})
+                {'success': True, 'status': 400, 'error': message})
+        message = {
+            'message': f'Interview time scheduled for {count_appointment} candidates',
+            'have no score': f'{no_score} candidates',
+        }
+        return Response({'success': True, 'status': 200, 'message': message})
 
 
 class CandidateListAPIView(generics.ListAPIView):
@@ -531,3 +546,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 class SettingsViewSet(viewsets.ModelViewSet):
     queryset = SettingsModel.objects.all()
     serializer_class = SettingsSerializer
+
+
+class PDFScoreAPIView(viewsets.ModelViewSet):
+    queryset = CandidateModel.objects.all().order_by('-score')
+    serializer_class = PDFScoreSerializer

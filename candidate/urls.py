@@ -8,6 +8,7 @@ app_name = 'candidate'
 router = DefaultRouter()
 router.register(r'appointment', views.AppointmentViewSet)
 router.register(r'settings', views.SettingsViewSet)
+router.register(r'PDF_score', views.PDFScoreAPIView)
 
 urlpatterns = [
     path('', include(router.urls)),

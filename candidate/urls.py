@@ -9,6 +9,7 @@ router = DefaultRouter()
 router.register(r'appointment', views.AppointmentViewSet)
 router.register(r'settings', views.SettingsViewSet)
 router.register(r'PDF_score', views.PDFScoreAPIView)
+router.register(r'interview_settings', views.InterviewSettingsViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

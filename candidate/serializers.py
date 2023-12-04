@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel, SettingsModel
+from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel, SettingsModel, InterviewSettingsModel
 
 
 class ExcelFileSerializer(serializers.Serializer):
@@ -70,4 +70,10 @@ class AppointmentSerializer(serializers.ModelSerializer):
 class SettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = SettingsModel
+        fields = '__all__'
+
+
+class InterviewSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InterviewSettingsModel
         fields = '__all__'

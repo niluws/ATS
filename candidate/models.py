@@ -3,12 +3,19 @@ import uuid
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
+from job.models import Job
+
 
 class SettingsModel(models.Model):
-    pass_score = models.IntegerField(null=True, blank=True)
-    interview_duration_hours = models.IntegerField(null=True, blank=True)
     start_work_time = models.IntegerField(null=True, blank=True)
     end_work_time = models.IntegerField(null=True, blank=True)
+
+
+class InterviewSettingsModel(models.Model):
+    job = models.ForeignKey(Job, on_delete=models.CASCADE)
+    settings = models.ForeignKey(SettingsModel, on_delete=models.CASCADE)
+    interview_duration_minutes = models.IntegerField(null=True, blank=True)
+    pass_score = models.IntegerField(null=True, blank=True)
 
 
 class CandidateModel(models.Model):

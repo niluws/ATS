@@ -20,9 +20,9 @@ from authentication.permissions import IsSuperuserOrHR
 from job.models import Requirement
 from utils import config
 from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel,\
-    SettingsModel, StatusModel
+    SettingsModel, StatusModel, InterviewSettingsModel
 from .serializers import ExcelFileSerializer, CandidateSerializer, ScoreSerializer, CandidateUpdateSerializer, \
-    AppointmentSerializer, SettingsSerializer, PDFScoreSerializer
+    AppointmentSerializer, SettingsSerializer, PDFScoreSerializer, InterviewSettingsSerializer
 
 
 def calculate_skill_score(candidate, educations, requirement, experiences_count):
@@ -79,13 +79,13 @@ def create_appointment(candidate, start_time, end_time):
     #              config.EMAIL_HOST_USER, [candidate.email]).send()
 
 
-def schedule_interviews(candidate, interview_duration_hours, start_work, end_work, current_date):
+def schedule_interviews(candidate, interview_duration_minutes, start_work, end_work, current_date):
     """
     Schedule interviews for qualified candidates based on settings.
 
     Args:
          candidate: Candidate object.
-         interview_duration_hours: Duration of the interview in hours.
+         interview_duration_minutes: Duration of the interview in hours.
          start_work: Start working time.
          end_work: End working time.
          current_date: Current date.
@@ -98,11 +98,11 @@ def schedule_interviews(candidate, interview_duration_hours, start_work, end_wor
                                                                                               second=0, microsecond=0):
             start_time = last_appointment.interview_end_time.replace(hour=start_work, minute=0, second=0,
                                                                      microsecond=0) + timezone.timedelta(days=1)
-            end_time = start_time + timezone.timedelta(minutes=interview_duration_hours)
+            end_time = start_time + timezone.timedelta(minutes=interview_duration_minutes)
             create_appointment(candidate, start_time, end_time)
         else:
             start_time = last_appointment.interview_end_time
-            end_time = start_time + timezone.timedelta(minutes=interview_duration_hours)
+            end_time = start_time + timezone.timedelta(minutes=interview_duration_minutes)
             create_appointment(candidate, start_time, end_time)
 
     else:
@@ -110,11 +110,11 @@ def schedule_interviews(candidate, interview_duration_hours, start_work, end_wor
 
             start_time = current_date.replace(hour=start_work, minute=0, second=0,
                                                 microsecond=0) + timezone.timedelta(days=1)
-            end_time = start_time + timezone.timedelta(minutes=interview_duration_hours)
+            end_time = start_time + timezone.timedelta(minutes=interview_duration_minutes)
             create_appointment(candidate, start_time, end_time)
         else:
             start_time = current_date.replace(hour=start_work, minute=0, second=0, microsecond=0)
-            end_time = start_time + timezone.timedelta(minutes=interview_duration_hours)
+            end_time = start_time + timezone.timedelta(minutes=interview_duration_minutes)
             create_appointment(candidate, start_time, end_time)
 
 
@@ -346,25 +346,29 @@ class SchedulerAPIView(views.APIView):
             get(): Schedule interviews based on candidate scores .
     """
     def get(self, request):
-        candidates = CandidateModel.objects.filter(appointmentmodel__interview_start_time__isnull=True)
+        candidates = CandidateModel.objects.filter(appointmentmodel__interview_start_time__isnull=True, statusmodel__isnull=True)
 
         current_date = timezone.now()
-        settings = SettingsModel.objects.all().first()
-
         count_appointment = 0
-        no_score=0
-        if settings is None:
-            return Response({'success': False, 'status': 400, 'error': 'You have no data in settings.'})
+        no_score = 0
+        job_titles = set(candidate.job for candidate in candidates)
+        settings_dict = {setting.job.title: setting for setting in InterviewSettingsModel.objects.filter(job__title__in=job_titles)}
+
+        # if settings is None:
+        #     return Response({'success': False, 'status': 400, 'error': 'You have no data in settings.'})
         for candidate in candidates:
+            #todo optimize this
+            #todo seperate score
             if candidate.PDF_score is None:
-                no_score+=1
+                no_score += 1
                 continue
+            settings = settings_dict.get(candidate.job)
             if candidate.PDF_score >= settings.pass_score:
                 count_appointment += 1
                 print('accepted:Send Interview Invitation date')
 
-                schedule_interviews(candidate, settings.interview_duration_hours, settings.start_work_time,
-                                    settings.end_work_time, current_date)
+                schedule_interviews(candidate, settings.interview_duration_minutes, settings.settings.start_work_time,
+                                    settings.settings.end_work_time, current_date)
                 try:
                     status_model = StatusModel.objects.get(candidate_id=candidate.id)
                     status_model.status = 'WI'
@@ -548,6 +552,12 @@ class SettingsViewSet(viewsets.ModelViewSet):
     serializer_class = SettingsSerializer
 
 
+class InterviewSettingsViewSet(viewsets.ModelViewSet):
+    queryset = InterviewSettingsModel.objects.all()
+    serializer_class = InterviewSettingsSerializer
+
+
 class PDFScoreAPIView(viewsets.ModelViewSet):
     queryset = CandidateModel.objects.all().order_by('-score')
     serializer_class = PDFScoreSerializer
+

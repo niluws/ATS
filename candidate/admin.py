@@ -6,6 +6,7 @@ admin.site.register(PreferencesModel)
 admin.site.register(EducationModel)
 admin.site.register(ExperiencesModel)
 admin.site.register(AppointmentModel)
+admin.site.register(StatusModel)
 
 
 class StatusModelInline(admin.TabularInline):
@@ -21,5 +22,5 @@ class AppointmentModelInline(admin.TabularInline):
 @admin.register(CandidateModel)
 class CandidateModelAdmin(admin.ModelAdmin):
     inlines = (AppointmentModelInline, StatusModelInline)
-    list_display = ('name', 'score',)
-    list_editable = ('score',)
+    list_display = ('name', 'score','PDF_score','job')
+    list_editable = ('score','PDF_score')

@@ -74,7 +74,7 @@ class NewPositionModel(models.Model):
     quantity = models.IntegerField()
     explanation = models.TextField(null=True, blank=True)
     hr_approval = models.BooleanField(default=False)
-    td_approval = models.BooleanField(default=False)
+    td_approval = models.BooleanField(null=True, blank=True)
     budget = models.BigIntegerField()
     assigned_to_td = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True,
                                        related_name='assigned_to_td_set')
@@ -90,7 +90,7 @@ class NewPositionModel(models.Model):
         else:
             self.assigned_to_td = None
 
-        if not self.td_approval:
+        if self.td_approval==False:
             self.interviewer.clear()
 
         super(NewPositionModel, self).save(*args, **kwargs)

@@ -37,7 +37,8 @@ class UserSerializer(serializers.ModelSerializer):
 class MeSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name']
+        fields = ['first_name', 'last_name', 'profile']
+        read_only_fields = ['profile']
 
 
 class VerifyEmailSerializer(serializers.ModelSerializer):

@@ -354,8 +354,6 @@ class SchedulerAPIView(views.APIView):
         job_titles = set(candidate.job for candidate in candidates)
         settings_dict = {setting.job.title: setting for setting in InterviewSettingsModel.objects.filter(job__title__in=job_titles)}
 
-        # if settings is None:
-        #     return Response({'success': False, 'status': 400, 'error': 'You have no data in settings.'})
         for candidate in candidates:
             #todo optimize this
             #todo seperate score
@@ -363,6 +361,8 @@ class SchedulerAPIView(views.APIView):
                 no_score += 1
                 continue
             settings = settings_dict.get(candidate.job)
+            if settings is None:
+                return Response({'success': False, 'status': 400, 'error': 'You have no data related to this job settings.'})
             if candidate.PDF_score >= settings.pass_score:
                 count_appointment += 1
                 print('accepted:Send Interview Invitation date')
@@ -478,7 +478,8 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
         resume = serializer.validated_data.get('resume')
 
         requirement = Requirement.objects.all()
-        settings = SettingsModel.objects.all().first()
+        settings = InterviewSettingsModel.objects.filter(job__title=candidate.job).first()
+
         educations = candidate.educationmodel_set.all()
         experiences_count = candidate.experiencesmodel_set.count()
         current_date = timezone.now()
@@ -502,8 +503,8 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
                     except StatusModel.DoesNotExist:
                         StatusModel.objects.create(candidate_id=candidate.id, status='WI')
 
-                    schedule_interviews(candidate, settings.interview_duration_hours, settings.start_work_time,
-                                        settings.end_work_time, current_date)
+                    schedule_interviews(candidate, settings.interview_duration_minutes, settings.settings.start_work_time,
+                                        settings.settings.end_work_time, current_date)
                 elif candidate.score is None or candidate.score <= settings.pass_score:
                     try:
                         status_model = StatusModel.objects.get(candidate_id=candidate.id)

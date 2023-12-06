@@ -8,7 +8,6 @@ app_name = 'candidate'
 router = DefaultRouter()
 router.register(r'appointment', views.AppointmentViewSet)
 router.register(r'settings', views.SettingsViewSet)
-router.register(r'PDF_score', views.PDFScoreAPIView)
 router.register(r'interview_settings', views.InterviewSettingsViewSet)
 
 urlpatterns = [
@@ -19,4 +18,5 @@ urlpatterns = [
     path('candidate_update/<str:pk>/', views.CandidateUpdateAPIView.as_view(), name='candidate_update'),
     path('auto_scheduler/', views.SchedulerAPIView.as_view(), name='auto_scheduler'),
     path('score_new_candidate/', views.NewCandidateScoreAPIView.as_view(), name='score_new_candidate'),
+    path('pdf_score/<uuid:candidate_id>/', views.PDFScoreAPIView.as_view(), name='pdf_score'),
 ]

@@ -20,8 +20,8 @@ from authentication.permissions import IsSuperuserOrHR
 from job.models import Requirement
 from utils import config
 from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel,\
-    SettingsModel, StatusModel, InterviewSettingsModel
-from .serializers import ExcelFileSerializer, CandidateSerializer, ScoreSerializer, CandidateUpdateSerializer, \
+    SettingsModel, StatusModel, InterviewSettingsModel, ScoreModel
+from .serializers import ExcelFileSerializer, CandidateSerializer, CandidateUpdateSerializer, \
     AppointmentSerializer, SettingsSerializer, PDFScoreSerializer, InterviewSettingsSerializer
 
 
@@ -38,7 +38,6 @@ def calculate_skill_score(candidate, educations, requirement, experiences_count)
         Returns: Total skill score.
     """
     total_score = experiences_count
-    print(experiences_count)
     for req in requirement:
         en, fa = req.en_title, req.fa_title
         req_counted = False
@@ -220,43 +219,41 @@ class UploadExcelAPIView(generics.CreateAPIView):
         hyperlink = row[6].hyperlink
 
         if hyperlink is not None:
-            try:
-                response = requests.get(hyperlink.target)
-                soup = BeautifulSoup(response.text, 'html.parser')
-                url = soup.find(lambda tag: tag.name == 'a' and 'دانلود' in tag.get_text(strip=True))['href']
-                resume_response = requests.get(url)
-                unique_id = uuid.uuid1()
-                candidate_data = {
-                    'id': unique_id,
-                    'name': row[2].value,
-                    'job': row[1].value,
-                    'phone_number': row[3].value,
-                    'email': user_email,
-                    'request_date': row[5].value,
-                    'resume': ContentFile(resume_response.content,
-                                          name=f"{row[1].value}/{row[2].value}.pdf") if resume_response else None,
-                    'job_status': self.extract_data(soup, 'وضعیت اشتغال'),
-                    'last_company': self.extract_data(soup, 'شرکت'),
-                    'education_level': self.extract_data(soup, 'تحصیلی'),
-                    'province': self.extract_data(soup, 'استان'),
-                    'location': self.extract_data(soup, 'آدرس محل'),
-                    'marital': self.extract_data(soup, 'تاهل'),
-                    'birthdate': self.extract_data(soup, 'سال تولد'),
-                    'gender': self.extract_data(soup, 'جنسیت'),
-                    'military_service_status': self.extract_data(soup, 'وضعیت خدمت'),
-                    'about': soup.find('p', class_='u-textJustify').get_text() if soup.find('p',
-                                                                                            class_='u-textJustify') else None,
-                    'skills': self.extract_skills(soup),
-                    'languages': self.extract_languages(soup),
-                }
-                candidates_to_create.append(CandidateModel(**candidate_data))
-                self.save_experiences(soup, unique_id, experiences_to_save)
-                self.save_preferences(soup, unique_id, preferences_to_save)
-                self.save_education(soup, unique_id, education_to_save)
+            response = requests.get(hyperlink.target)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            url = soup.find(lambda tag: tag.name == 'a' and 'دانلود' in tag.get_text(strip=True))['href']
+            resume_response = requests.get(url)
+            unique_id = uuid.uuid1()
+            jalali_update_date = jdatetime.fromgregorian(datetime=timezone.now())
+            formatted_update_date = jalali_update_date.strftime('%Y_%m_%d_%H.%M')
 
-            except :
-                os.remove(file_path)
-                return Response({'success': False, 'status': 422, 'error': 'Cannot access URL'})
+            candidate_data = {
+                'id': unique_id,
+                'name': row[2].value,
+                'job': row[1].value,
+                'phone_number': row[3].value,
+                'email': user_email,
+                'request_date': row[5].value,
+                'resume': ContentFile(resume_response.content,
+                                      name=f"{row[1].value}/{row[2].value}__{formatted_update_date}.pdf") if resume_response else None,
+                'job_status': self.extract_data(soup, 'وضعیت اشتغال'),
+                'last_company': self.extract_data(soup, 'شرکت'),
+                'education_level': self.extract_data(soup, 'تحصیلی'),
+                'province': self.extract_data(soup, 'استان'),
+                'location': self.extract_data(soup, 'آدرس محل'),
+                'marital': self.extract_data(soup, 'تاهل'),
+                'birthdate': self.extract_data(soup, 'سال تولد'),
+                'gender': self.extract_data(soup, 'جنسیت'),
+                'military_service_status': self.extract_data(soup, 'وضعیت خدمت'),
+                'about': soup.find('p', class_='u-textJustify').get_text() if soup.find('p',
+                                                                                        class_='u-textJustify') else None,
+                'skills': self.extract_skills(soup),
+                'languages': self.extract_languages(soup),
+            }
+            candidates_to_create.append(CandidateModel(**candidate_data))
+            self.save_experiences(soup, unique_id, experiences_to_save)
+            self.save_preferences(soup, unique_id, preferences_to_save)
+            self.save_education(soup, unique_id, education_to_save)
 
     def post(self, request, *args, **kwargs):
         uploaded_file = request.FILES.get('file')
@@ -307,29 +304,27 @@ class UploadExcelAPIView(generics.CreateAPIView):
 
 class NewCandidateScoreAPIView(generics.ListAPIView):
     """
-    Calculate and update the skill scores for candidates.
+    Calculate and set the scores for candidates.
 
     Methods:
-        get(self, request, *args, **kwargs):Scores and sends a rejection email if the candidate's score is zero.
+        get(self, request, *args, **kwargs):Scores to the candidate with no score.
     """
-    queryset = CandidateModel.objects.prefetch_related('experiencesmodel_set', 'educationmodel_set').filter(score=None)
-    serializer_class = ScoreSerializer
-    # permission_classes = [IsSuperuserOrHR, IsSuperuserOrTD]
+    queryset = CandidateModel.objects.filter(scoremodel__isnull=True).prefetch_related('experiencesmodel_set', 'educationmodel_set')
 
     def get(self, request, *args, **kwargs):
         candidates = self.get_queryset()
         requirement = Requirement.objects.all()
 
         count = 0
-        updated_candidates = []
         for candidate in candidates:
             educations = candidate.educationmodel_set.all()
             experiences_count = candidate.experiencesmodel_set.count()
-            candidate.score = calculate_skill_score(candidate, educations, requirement, experiences_count)
-            updated_candidates.append(candidate)
+            ScoreModel.objects.create(
+                candidate_id=candidate.id,
+                auto_score=calculate_skill_score(candidate, educations, requirement, experiences_count),
+                pdf_score=None,
+            )
             count += 1
-
-        CandidateModel.objects.bulk_update(updated_candidates, ['score'])
 
         if count == 0:
             return Response(
@@ -355,15 +350,16 @@ class SchedulerAPIView(views.APIView):
         settings_dict = {setting.job.title: setting for setting in InterviewSettingsModel.objects.filter(job__title__in=job_titles)}
 
         for candidate in candidates:
-            #todo optimize this
-            #todo seperate score
-            if candidate.PDF_score is None:
+
+            score = candidate.scoremodel_set.last()
+
+            if score.pdf_score is None:
                 no_score += 1
                 continue
             settings = settings_dict.get(candidate.job)
             if settings is None:
                 return Response({'success': False, 'status': 400, 'error': 'You have no data related to this job settings.'})
-            if candidate.PDF_score >= settings.pass_score:
+            if score.pdf_score >= settings.pass_score:
                 count_appointment += 1
                 print('accepted:Send Interview Invitation date')
 
@@ -558,7 +554,18 @@ class InterviewSettingsViewSet(viewsets.ModelViewSet):
     serializer_class = InterviewSettingsSerializer
 
 
-class PDFScoreAPIView(viewsets.ModelViewSet):
-    queryset = CandidateModel.objects.all().order_by('-score')
+class PDFScoreAPIView(generics.RetrieveUpdateAPIView):
+    queryset = ScoreModel.objects.all()
     serializer_class = PDFScoreSerializer
+    lookup_field = 'candidate_id'
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+
+        instance.pdf_score = serializer.validated_data.get('pdf_score', instance.pdf_score)
+        instance.save()
+
+        return Response(serializer.data)

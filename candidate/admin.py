@@ -1,6 +1,7 @@
 from django.contrib import admin
 
-from .models import CandidateModel, PreferencesModel, EducationModel, ExperiencesModel, AppointmentModel, StatusModel
+from .models import CandidateModel, PreferencesModel, EducationModel, ExperiencesModel, AppointmentModel, StatusModel, \
+    ScoreModel
 
 admin.site.register(PreferencesModel)
 admin.site.register(EducationModel)
@@ -19,8 +20,14 @@ class AppointmentModelInline(admin.TabularInline):
     extra = 0
 
 
+class ScoreModelInline(admin.TabularInline):
+    list_display = ('candidate', 'auto_score', 'PDF_score')
+    model = ScoreModel
+    extra = 0
+
+
 @admin.register(CandidateModel)
 class CandidateModelAdmin(admin.ModelAdmin):
-    inlines = (AppointmentModelInline, StatusModelInline)
-    list_display = ('name', 'score','PDF_score','job')
-    list_editable = ('score','PDF_score')
+    inlines = (AppointmentModelInline, StatusModelInline, ScoreModelInline)
+    list_display = ('name', 'job')
+    # list_editable = ('score', 'PDF_score')

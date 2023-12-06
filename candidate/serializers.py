@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel, SettingsModel, InterviewSettingsModel
+from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel, SettingsModel, \
+    InterviewSettingsModel, ScoreModel
 
 
 class ExcelFileSerializer(serializers.Serializer):
@@ -33,12 +34,6 @@ class ExperiencesModelSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class ScoreSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CandidateModel
-        fields = ['id', 'name', 'email', 'resume', 'score']
-
-
 class CandidateUpdateSerializer(serializers.ModelSerializer):
     resume = serializers.FileField(required=False)
     status = serializers.CharField(source='statusmodel.status', read_only=True)
@@ -55,10 +50,17 @@ class CandidateUpdateSerializer(serializers.ModelSerializer):
 
 
 class PDFScoreSerializer(serializers.ModelSerializer):
+    candidate = CandidateSerializer(read_only=True)
+
     class Meta:
-        model = CandidateModel
-        fields = ['id', 'resume', 'score', 'PDF_score']
-        read_only_fields = ['score', 'resume']
+        model = ScoreModel
+        fields = ['id', 'candidate', 'auto_score', 'pdf_score']
+        read_only_fields = ['id', 'candidate', 'auto_score']
+
+    def update(self, instance, validated_data):
+        instance.pdf_score = validated_data.get('pdf_score', instance.pdf_score)
+        instance.save()
+        return instance
 
 
 class AppointmentSerializer(serializers.ModelSerializer):

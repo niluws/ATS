@@ -19,4 +19,5 @@ urlpatterns = [
     path('auto_scheduler/', views.SchedulerAPIView.as_view(), name='auto_scheduler'),
     path('score_new_candidate/', views.NewCandidateScoreAPIView.as_view(), name='score_new_candidate'),
     path('pdf_score/<uuid:candidate_id>/', views.PDFScoreAPIView.as_view(), name='pdf_score'),
+    path('interviewer_score/<uuid:candidate_id>/', views.InterviewerScoreAPIView.as_view(), name='candidate_score_update'),
 ]

@@ -9,6 +9,7 @@ router = DefaultRouter()
 router.register('job_title', views.JobViewSet)
 router.register('new_request', views.NewPositionViewSet, basename="new_postion")
 router.register('job_requirement', views.JobRequirementViewSet, basename="job_requirement")
+router.register(r'question', views.QuestionsViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

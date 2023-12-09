@@ -18,8 +18,8 @@ class AuthHandler(authentication.BaseAuthentication):
         return jwt.encode(to_encode, self.SECRET_KEY, algorithm=self.ALGORITHM)
 
     def encode_login_token(self, data: dict):
-        access_token = self.encode_token(data, self.ACCESS_TOKEN_EXPIRE_MINUTES).decode('utf-8')
-        refresh_token = self.encode_token(data, self.REFRESH_TOKEN_EXPIRE_MINUTES).decode('utf-8')
+        access_token = self.encode_token(data, self.ACCESS_TOKEN_EXPIRE_MINUTES)
+        refresh_token = self.encode_token(data, self.REFRESH_TOKEN_EXPIRE_MINUTES)
 
         login_token = dict(
             access_token=f"{access_token}",

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Job, NewPositionModel, Requirement, JobRequirement
+from .models import Job, NewPositionModel, Requirement, JobRequirement, QuestionsModel
 
 
 class BasePositionSerializer(serializers.ModelSerializer):
@@ -28,10 +28,18 @@ class TDApprovalSerializer(HRApprovalSerializer):
         return super().update(instance, validated_data)
 
 
+class QuestionsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QuestionsModel
+        fields = '__all__'
+
+
 class JobSerializer(serializers.ModelSerializer):
+    questionsmodel_set = QuestionsSerializer(many=True, read_only=True)
+
     class Meta:
         model = Job
-        fields = '__all__'
+        fields = ('id', 'title', 'questionsmodel_set', 'created_at')
 
 
 class RequirementSerializer(serializers.ModelSerializer):

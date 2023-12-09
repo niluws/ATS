@@ -3,7 +3,8 @@ import uuid
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from job.models import Job
+from authentication.models import User
+from job.models import Job, QuestionsModel
 
 
 class SettingsModel(models.Model):
@@ -106,3 +107,10 @@ class StatusModel(models.Model):
     candidate = models.OneToOneField(CandidateModel, on_delete=models.CASCADE)
     status = models.CharField(max_length=2, choices=STATUS_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class InterviewerScore(models.Model):
+    candidate = models.ForeignKey(CandidateModel, on_delete=models.CASCADE)
+    interviewer = models.ForeignKey(User, on_delete=models.CASCADE)
+    question = models.ForeignKey(QuestionsModel, on_delete=models.CASCADE)
+    score = models.IntegerField(null=True, blank=True)

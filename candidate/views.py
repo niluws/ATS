@@ -19,11 +19,14 @@ from rest_framework.response import Response
 from authentication.permissions import IsSuperuserOrHR
 from job.models import Requirement
 from utils import config
+from authentication import JWTManager
+from authentication.models import User
 from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel,\
-    SettingsModel, StatusModel, InterviewSettingsModel, ScoreModel
+    SettingsModel, StatusModel, InterviewSettingsModel, ScoreModel, InterviewerScore
 from .serializers import ExcelFileSerializer, CandidateSerializer, CandidateUpdateSerializer, \
-    AppointmentSerializer, SettingsSerializer, PDFScoreSerializer, InterviewSettingsSerializer
+    AppointmentSerializer, SettingsSerializer, PDFScoreSerializer, InterviewSettingsSerializer, InterviewerScoreSerializer
 
+jwt_manager = JWTManager.AuthHandler()
 
 def calculate_skill_score(candidate, educations, requirement, experiences_count):
     """
@@ -569,3 +572,54 @@ class PDFScoreAPIView(generics.RetrieveUpdateAPIView):
         instance.save()
 
         return Response(serializer.data)
+
+
+class InterviewerScoreAPIView(generics.ListCreateAPIView, generics.UpdateAPIView):
+    queryset = InterviewerScore.objects.all()
+    serializer_class = InterviewerScoreSerializer
+    lookup_field = 'candidate_id'
+
+    def get_queryset(self):
+        email = jwt_manager.get_user_from_auth_header(self.request)
+        user = User.objects.filter(email=email).first()
+        return InterviewerScore.objects.filter(interviewer=user)
+
+    def perform_create(self, serializer):
+        candidate_id = self.kwargs['candidate_id']
+        email = jwt_manager.get_user_from_auth_header(self.request)
+        user = User.objects.filter(email=email).first()
+        try:
+            candidate = CandidateModel.objects.get(pk=candidate_id)
+        except CandidateModel.DoesNotExist:
+            return Response({'error': 'Candidate not found'}, status=400)
+        serializer.save(candidate=candidate, interviewer=user)
+
+    def post(self, request, *args, **kwargs):
+        candidate_id = self.kwargs['candidate_id']
+        question_id = request.data.get('question')
+        user = jwt_manager.get_user_from_auth_header(self.request)
+        existing_score = InterviewerScore.objects.filter(candidate_id=candidate_id, question_id=question_id, interviewer__email=user).first()
+        if existing_score:
+            return Response({'detail': 'You have already scored to this candidate for this question.'}, status=400)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        return Response(serializer.data, status=201)
+
+    def update(self, request, *args, **kwargs):
+        candidate_id = self.kwargs['candidate_id']
+        question_id = request.data.get('question')
+        user = jwt_manager.get_user_from_auth_header(self.request)
+
+        try:
+            existing_score = InterviewerScore.objects.get(candidate_id=candidate_id, question_id=question_id, interviewer__email=user)
+        except InterviewerScore.DoesNotExist:
+            return Response({'detail': 'Score not found for the specified candidate and question.'}, status=404)
+
+        serializer = self.get_serializer(existing_score, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data, status=200)

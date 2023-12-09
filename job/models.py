@@ -18,6 +18,11 @@ class Job(models.Model):
         return self.title
 
 
+class QuestionsModel(models.Model):
+    job = models.ForeignKey(Job, on_delete=models.CASCADE)
+    title = models.CharField(max_length=150, null=True, blank=True)
+
+
 class Requirement(models.Model):
     en_title = models.CharField(max_length=150, unique=True)
     fa_title = models.CharField(max_length=150, unique=True)

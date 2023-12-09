@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel, SettingsModel, \
-    InterviewSettingsModel, ScoreModel
+    InterviewSettingsModel, ScoreModel, InterviewerScore
 
 
 class ExcelFileSerializer(serializers.Serializer):
@@ -79,3 +79,10 @@ class InterviewSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = InterviewSettingsModel
         fields = '__all__'
+
+
+class InterviewerScoreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InterviewerScore
+        fields = ['interviewer', 'question', 'score']
+        read_only_fields = ['interviewer']

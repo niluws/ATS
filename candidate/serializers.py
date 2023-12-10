@@ -1,7 +1,8 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 
 from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel, SettingsModel, \
-    InterviewSettingsModel, ScoreModel, InterviewerScore
+    InterviewSettingsModel, ScoreModel, InterviewerScore, QuestionsModel
 
 
 class ExcelFileSerializer(serializers.Serializer):
@@ -82,7 +83,27 @@ class InterviewSettingsSerializer(serializers.ModelSerializer):
 
 
 class InterviewerScoreSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = InterviewerScore
-        fields = ['interviewer', 'question', 'score']
-        read_only_fields = ['interviewer']
+        fields = ['id', 'interviewer', 'question', 'score', 'candidate']
+        read_only_fields = ['id', 'interviewer', 'candidate']
+
+    def __init__(self, *args, **kwargs):
+        context = kwargs.get('context', {})
+        request = context.get('request')
+
+        if request:
+            candidate_id = request.parser_context['kwargs']['candidate_id']
+            candidate = get_object_or_404(CandidateModel, id=candidate_id)
+            self.fields['question'].queryset = QuestionsModel.objects.filter(
+                job__title__icontains=candidate.job
+            )
+        super().__init__(*args, **kwargs)
+
+
+class UpdateInterviewerScoreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InterviewerScore
+        fields = ['id', 'interviewer', 'question', 'score', 'candidate']
+        read_only_fields = ['id', 'interviewer', 'candidate','question']

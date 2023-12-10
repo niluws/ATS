@@ -19,5 +19,7 @@ urlpatterns = [
     path('auto_scheduler/', views.SchedulerAPIView.as_view(), name='auto_scheduler'),
     path('score_new_candidate/', views.NewCandidateScoreAPIView.as_view(), name='score_new_candidate'),
     path('pdf_score/<uuid:candidate_id>/', views.PDFScoreAPIView.as_view(), name='pdf_score'),
-    path('interviewer_score/<uuid:candidate_id>/', views.InterviewerScoreAPIView.as_view(), name='candidate_score_update'),
+    path('interviewer_scores/<uuid:candidate_id>/', views.InterviewerCandidateScoreAPI.as_view(), name='candidate_score_update'),
+    path('interviewer_scores/', views.InterviewerAllScoresAPI.as_view(), name='all_candidates_scores'),
+    path('interviewer_scores/<int:pk>', views.UpdateInterviewerCandidateScoreAPI.as_view(), name='update_interviewer_scores'),
 ]

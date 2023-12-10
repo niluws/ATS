@@ -22,11 +22,13 @@ from utils import config
 from authentication import JWTManager
 from authentication.models import User
 from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel,\
-    SettingsModel, StatusModel, InterviewSettingsModel, ScoreModel, InterviewerScore
+    SettingsModel, StatusModel, InterviewSettingsModel, ScoreModel, InterviewerScore, QuestionsModel
 from .serializers import ExcelFileSerializer, CandidateSerializer, CandidateUpdateSerializer, \
-    AppointmentSerializer, SettingsSerializer, PDFScoreSerializer, InterviewSettingsSerializer, InterviewerScoreSerializer
+    AppointmentSerializer, SettingsSerializer, PDFScoreSerializer, InterviewSettingsSerializer, \
+    InterviewerScoreSerializer, UpdateInterviewerScoreSerializer
 
 jwt_manager = JWTManager.AuthHandler()
+
 
 def calculate_skill_score(candidate, educations, requirement, experiences_count):
     """
@@ -110,8 +112,8 @@ def schedule_interviews(candidate, interview_duration_minutes, start_work, end_w
     else:
         if current_date >= current_date.replace(hour=start_work, minute=0, second=0, microsecond=0):
 
-            start_time = current_date.replace(hour=start_work, minute=0, second=0,
-                                                microsecond=0) + timezone.timedelta(days=1)
+            start_time = current_date.replace(hour=start_work, minute=0, second=0, microsecond=0) \
+                         + timezone.timedelta(days=1)
             end_time = start_time + timezone.timedelta(minutes=interview_duration_minutes)
             create_appointment(candidate, start_time, end_time)
         else:
@@ -574,33 +576,58 @@ class PDFScoreAPIView(generics.RetrieveUpdateAPIView):
         return Response(serializer.data)
 
 
-class InterviewerScoreAPIView(generics.ListCreateAPIView, generics.UpdateAPIView):
+class InterviewerAllScoresAPI(generics.ListAPIView):
     queryset = InterviewerScore.objects.all()
     serializer_class = InterviewerScoreSerializer
-    lookup_field = 'candidate_id'
 
-    def get_queryset(self):
-        email = jwt_manager.get_user_from_auth_header(self.request)
+    def get(self, request, *args, **kwargs):
+        email = jwt_manager.get_user_from_auth_header(request)
         user = User.objects.filter(email=email).first()
-        return InterviewerScore.objects.filter(interviewer=user)
+        queryset = InterviewerScore.objects.filter(interviewer=user).order_by('candidate')
+        serializer = InterviewerScoreSerializer(queryset, many=True)
+        return Response(serializer.data, status=200)
+
+
+class InterviewerCandidateScoreAPI(generics.ListCreateAPIView):
+    queryset = QuestionsModel.objects.all()
+    serializer_class = InterviewerScoreSerializer
+
+    def get_user(self):
+        email = jwt_manager.get_user_from_auth_header(self.request)
+        return User.objects.filter(email=email).first()
+
+    def get(self, request, *args, **kwargs):
+        user = self.get_user()
+        candidate_id = self.kwargs['candidate_id']
+        questions_queryset = self.get_queryset()
+
+        queryset = InterviewerScore.objects.filter(
+            interviewer=user, candidate_id=candidate_id, question__in=questions_queryset
+        )
+        serializer = InterviewerScoreSerializer(queryset, many=True)
+        return Response(serializer.data, status=200)
 
     def perform_create(self, serializer):
         candidate_id = self.kwargs['candidate_id']
-        email = jwt_manager.get_user_from_auth_header(self.request)
-        user = User.objects.filter(email=email).first()
-        try:
-            candidate = CandidateModel.objects.get(pk=candidate_id)
-        except CandidateModel.DoesNotExist:
-            return Response({'error': 'Candidate not found'}, status=400)
+        user = self.get_user()
+        candidate = CandidateModel.objects.get(id=candidate_id)
+
         serializer.save(candidate=candidate, interviewer=user)
 
     def post(self, request, *args, **kwargs):
         candidate_id = self.kwargs['candidate_id']
+        candidate_exists = CandidateModel.objects.filter(id=candidate_id).exists()
+        if not candidate_exists:
+            return Response({'success': False, 'status': 400,
+                             'error': 'Invalid candidate ID.'})
         question_id = request.data.get('question')
-        user = jwt_manager.get_user_from_auth_header(self.request)
-        existing_score = InterviewerScore.objects.filter(candidate_id=candidate_id, question_id=question_id, interviewer__email=user).first()
+        user = self.get_user()
+
+        existing_score = InterviewerScore.objects.filter(candidate_id=candidate_id, question_id=question_id,
+                                                         interviewer__email=user).first()
         if existing_score:
-            return Response({'detail': 'You have already scored to this candidate for this question.'}, status=400)
+            return Response(
+                {'success': False, 'status': 400, 'error': 'You have already scored this question for this candidate.'})
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -608,18 +635,7 @@ class InterviewerScoreAPIView(generics.ListCreateAPIView, generics.UpdateAPIView
 
         return Response(serializer.data, status=201)
 
-    def update(self, request, *args, **kwargs):
-        candidate_id = self.kwargs['candidate_id']
-        question_id = request.data.get('question')
-        user = jwt_manager.get_user_from_auth_header(self.request)
 
-        try:
-            existing_score = InterviewerScore.objects.get(candidate_id=candidate_id, question_id=question_id, interviewer__email=user)
-        except InterviewerScore.DoesNotExist:
-            return Response({'detail': 'Score not found for the specified candidate and question.'}, status=404)
-
-        serializer = self.get_serializer(existing_score, data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        return Response(serializer.data, status=200)
+class UpdateInterviewerCandidateScoreAPI(generics.RetrieveUpdateDestroyAPIView):
+    queryset = InterviewerScore.objects.all()
+    serializer_class = UpdateInterviewerScoreSerializer

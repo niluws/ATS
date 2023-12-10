@@ -305,17 +305,17 @@ class UploadExcelAPIView(generics.CreateAPIView):
             return Response({'success': True, 'status': 200, 'message': message})
 
 
-class NewCandidateScoreAPIView(generics.ListAPIView):
+class NewCandidateScoreAPIView(views.APIView):
     """
     Calculate and set the scores for candidates.
 
     Methods:
         get(self, request, *args, **kwargs):Scores to the candidate with no score.
     """
-    queryset = CandidateModel.objects.filter(scoremodel__isnull=True).prefetch_related('experiencesmodel_set', 'educationmodel_set')
 
     def get(self, request, *args, **kwargs):
-        candidates = self.get_queryset()
+        candidates = CandidateModel.objects.filter(scoremodel__isnull=True).prefetch_related('experiencesmodel_set', 'educationmodel_set')
+
         requirement = Requirement.objects.all()
 
         count = 0

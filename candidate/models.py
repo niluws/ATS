@@ -51,6 +51,7 @@ class ScoreModel(models.Model):
     candidate = models.ForeignKey(CandidateModel, on_delete=models.CASCADE)
     auto_score = models.IntegerField(null=True, blank=True)
     pdf_score = models.IntegerField(null=True, blank=True)
+    interview_score = models.IntegerField(null=True, blank=True)
     create_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

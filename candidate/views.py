@@ -26,7 +26,7 @@ from .models import CandidateModel, EducationModel, PreferencesModel, Experience
     SettingsModel, StatusModel, InterviewSettingsModel, ScoreModel, InterviewerScore, QuestionsModel
 from .serializers import ExcelFileSerializer, CandidateSerializer, CandidateUpdateSerializer, \
     AppointmentSerializer, SettingsSerializer, PDFScoreSerializer, InterviewSettingsSerializer, \
-    InterviewerScoreSerializer, UpdateInterviewerScoreSerializer
+    InterviewerScoreSerializer, UpdateInterviewerScoreSerializer,CandidateAllInterviewerScoreSerializer
 
 jwt_manager = JWTManager.AuthHandler()
 
@@ -613,7 +613,6 @@ class InterviewerCandidateScoreAPI(generics.ListCreateAPIView):
     queryset = QuestionsModel.objects.all()
     serializer_class = InterviewerScoreSerializer
 
-    @exception_handler
     def get_user(self):
         email = jwt_manager.get_user_from_auth_header(self.request)
         return User.objects.filter(email=email).first()
@@ -641,11 +640,19 @@ class InterviewerCandidateScoreAPI(generics.ListCreateAPIView):
     @exception_handler
     def post(self, request, *args, **kwargs):
         candidate_id = self.kwargs['candidate_id']
+
         candidate_exists = CandidateModel.objects.filter(id=candidate_id).exists()
         if not candidate_exists:
             return Response({'success': False, 'status': 400,
                              'error': 'Invalid candidate ID.'})
+
         question_id = request.data.get('question')
+        candidate = CandidateModel.objects.filter(id=candidate_id).first()
+        exist_question = QuestionsModel.objects.filter(id=question_id,job__title=candidate.job).exists()
+        if not exist_question:
+            return Response({'success': False, 'status': 400,
+                             'error': 'This question is not related to candidates job.'})
+
         user = self.get_user()
 
         existing_score = InterviewerScore.objects.filter(candidate_id=candidate_id, question_id=question_id,
@@ -664,3 +671,34 @@ class InterviewerCandidateScoreAPI(generics.ListCreateAPIView):
 class UpdateInterviewerCandidateScoreAPI(generics.RetrieveUpdateDestroyAPIView):
     queryset = InterviewerScore.objects.all()
     serializer_class = UpdateInterviewerScoreSerializer
+
+
+class InterviewDoneAPIView(generics.ListAPIView):
+    serializer_class = CandidateAllInterviewerScoreSerializer
+    lookup_field = 'candidate_id'
+
+    def get_queryset(self):
+        candidate_id = self.kwargs['candidate_id']
+        return InterviewerScore.objects.filter(candidate_id=candidate_id)
+
+    @exception_handler
+    def get(self, request, *args, **kwargs):
+        candidate_id = self.kwargs['candidate_id']
+        queryset = self.get_queryset()
+        score = ScoreModel.objects.get(candidate_id=candidate_id)
+        total = 0
+        for total_score in queryset:
+            total += total_score.score
+        score.interview_score = total
+        score.save()
+        return Response({'success': True, 'status': 200, 'message': f'Total score:{total} saved successfully'})
+
+
+class CandidateAllInterviewerScoreAPI(generics.ListAPIView):
+    serializer_class = CandidateAllInterviewerScoreSerializer
+    lookup_field = 'candidate_id'
+
+    def get_queryset(self):
+        candidate_id = self.kwargs['candidate_id']
+        return InterviewerScore.objects.filter(candidate_id=candidate_id)
+

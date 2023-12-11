@@ -8,6 +8,7 @@ from rest_framework import generics, views
 from rest_framework.response import Response
 
 from utils import config
+from utils.exception_handler import exception_handler
 from user.models import Profile
 from . import JWTManager
 from .models import User, LogModel
@@ -17,6 +18,7 @@ from .serializers import RegisterSerializer, LoginSerializer, RefreshTokenSerial
 jwt_manager = JWTManager.AuthHandler()
 
 
+@exception_handler
 def log_user_activity(func):
     @wraps(func)
     def wrapper_func(self, request, *args, **kwargs):
@@ -32,6 +34,7 @@ def log_user_activity(func):
     return wrapper_func
 
 
+@exception_handler
 def generate_and_send_otp(email, current_site):
     otp = str(uuid.uuid4())
     r = redis.Redis(host='localhost', port=6379, db=0)
@@ -48,6 +51,7 @@ def generate_and_send_otp(email, current_site):
 class RegisterAPIView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
+    @exception_handler
     @log_user_activity
     def post(self, request, *args, **kwargs):
         try:
@@ -84,6 +88,7 @@ class RegisterAPIView(generics.CreateAPIView):
 class LoginAPIView(generics.CreateAPIView):
     serializer_class = LoginSerializer
 
+    @exception_handler
     @log_user_activity
     def create(self, request, *args, **kwargs):
         email = request.data.get('email')
@@ -115,6 +120,7 @@ class LoginAPIView(generics.CreateAPIView):
 class LogoutAPIView(generics.GenericAPIView):
     serializer_class = LogoutSerializer
 
+    @exception_handler
     @log_user_activity
     def get(self, request):
         auth = jwt_manager.get_user_from_auth_header(self.request)
@@ -139,6 +145,7 @@ class MeAPIView(generics.RetrieveUpdateAPIView):
         user = User.objects.get(email__iexact=user)
         return user
 
+    @exception_handler
     def get(self, request, *args, **kwargs):
         user = jwt_manager.get_user_from_auth_header(self.request)
         if user:
@@ -154,6 +161,7 @@ class MeAPIView(generics.RetrieveUpdateAPIView):
 class RefreshTokenAPIView(generics.CreateAPIView):
     serializer_class = RefreshTokenSerializer
 
+    @exception_handler
     def create(self, request, *args, **kwargs):
         refresh_token = request.data.get('refresh_token')
 
@@ -170,6 +178,7 @@ class RefreshTokenAPIView(generics.CreateAPIView):
 
 class ActiveAccountAPIView(views.APIView):
 
+    @exception_handler
     def get(self, request, otp_code):
 
         r = redis.Redis(host='localhost', port=6379, db=0)
@@ -193,6 +202,7 @@ class ActiveAccountAPIView(views.APIView):
 class VerifyEmailAPIView(generics.CreateAPIView):
     serializer_class = VerifyEmailSerializer
 
+    @exception_handler
     def post(self, request, *args, **kwargs):
         email = request.data['email']
         user = User.objects.filter(email=email).first()

@@ -19,6 +19,7 @@ from rest_framework.response import Response
 from authentication.permissions import IsSuperuserOrHR
 from job.models import Requirement
 from utils import config
+from utils.exception_handler import exception_handler
 from authentication import JWTManager
 from authentication.models import User
 from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel,\
@@ -30,6 +31,7 @@ from .serializers import ExcelFileSerializer, CandidateSerializer, CandidateUpda
 jwt_manager = JWTManager.AuthHandler()
 
 
+@exception_handler
 def calculate_skill_score(candidate, educations, requirement, experiences_count):
     """
         Calculate the skill score of a candidate based on their educations, skills, about, languages and experiences.
@@ -64,6 +66,7 @@ def calculate_skill_score(candidate, educations, requirement, experiences_count)
     return total_score
 
 
+@exception_handler
 def create_appointment(candidate, start_time, end_time):
     """
         Create an appointment for a candidate and email the interview start and end times.
@@ -83,6 +86,7 @@ def create_appointment(candidate, start_time, end_time):
     #              config.EMAIL_HOST_USER, [candidate.email]).send()
 
 
+@exception_handler
 def schedule_interviews(candidate, interview_duration_minutes, start_work, end_work, current_date):
     """
     Schedule interviews for qualified candidates based on settings.
@@ -133,6 +137,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
     # permission_classes = [IsSuperuserOrHR]
     parser_classes = (parsers.MultiPartParser,)
 
+    @exception_handler
     def save_education(self, soup, candidate_id, education_to_save):
         for education in soup.select(
                 'div.card-header:-soup-contains("تحصیلی") + div.card-body div.list-group-item label.d-block'):
@@ -150,6 +155,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
                 None
             education_to_save.append(new_education)
 
+    @exception_handler
     def save_preferences(self, soup, candidate_id, preferences_to_save):
         """
             Save preference information from the parsed HTML soup.
@@ -180,6 +186,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
         )
         preferences_to_save.append(new_preference)
 
+    @exception_handler
     def save_experiences(self, soup, candidate_id, experiences_to_save):
 
         for experience in soup.select(
@@ -205,20 +212,24 @@ class UploadExcelAPIView(generics.CreateAPIView):
             )
             experiences_to_save.append(new_experience)
 
+    @exception_handler
     def extract_languages(self, soup):
         language_element = soup.select('div.card-header:-soup-contains("زبان") + div.card-body div.list-group-item')
         return [re.sub(r'\s+', ' ', language.find('label').get_text()) for language in
                 language_element] if language_element else None
 
+    @exception_handler
     def extract_skills(self, soup):
         skill_element = soup.select(
             'div.card-header:-soup-contains("حرفه") + div.card-body div.font-size-2xl.vertical-align-middle.color-grey-light-1 label.font-size-base.color-grey-dark-2.mh-1')
         return [skill.get_text(strip=True) for skill in skill_element] if skill_element else None
 
+    @exception_handler
     def extract_data(self, soup, label_text):
         label = soup.find('label', text=re.compile(label_text))
         return re.sub(r'\s+', ' ', label.find_next_sibling('span').get_text(strip=True)) if label else None
 
+    @exception_handler
     def process_row(self, row, file_path, user_email, candidates_to_create, experiences_to_save, preferences_to_save,
                     education_to_save):
         hyperlink = row[6].hyperlink
@@ -260,6 +271,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
             self.save_preferences(soup, unique_id, preferences_to_save)
             self.save_education(soup, unique_id, education_to_save)
 
+    @exception_handler
     def post(self, request, *args, **kwargs):
         uploaded_file = request.FILES.get('file')
 
@@ -315,6 +327,7 @@ class NewCandidateScoreAPIView(views.APIView):
         get(self, request, *args, **kwargs):Scores to the candidate with no score.
     """
 
+    @exception_handler
     def get(self, request, *args, **kwargs):
         candidates = CandidateModel.objects.filter(scoremodel__isnull=True).prefetch_related('experiencesmodel_set', 'educationmodel_set')
 
@@ -345,6 +358,8 @@ class SchedulerAPIView(views.APIView):
         Methods:
             get(): Schedule interviews based on candidate scores .
     """
+
+    @exception_handler
     def get(self, request):
         candidates = CandidateModel.objects.filter(appointmentmodel__interview_start_time__isnull=True, statusmodel__isnull=True)
 
@@ -428,6 +443,7 @@ class OldCandidateInvitationAPIView(generics.ListAPIView):
     filterset_fields = ('job',)
     # permission_classes = [IsAuthenticated]
 
+    @exception_handler
     def get(self, request, *args, **kwargs):
         job_param = request.GET.get('job', '')
         candidates = CandidateModel.objects.filter(job=job_param).filter(Q(appointmentmodel__interview_start_time__isnull=True) | Q(statusmodel__status='R'))
@@ -437,6 +453,7 @@ class OldCandidateInvitationAPIView(generics.ListAPIView):
 
         return self.list(request, *args, **kwargs)
 
+    @exception_handler
     def send_invitation_email(self, candidate, job_param, current_site, candidate_id):
         print(
             f'Hello {candidate.name} Please consider updating your resume and applying for {job_param} position if you are interested Click on the following link to apply:http://{current_site.domain}/candidate/candidate_update/{candidate_id}', )
@@ -458,6 +475,7 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
     serializer_class = CandidateUpdateSerializer
     parser_classes = (parsers.MultiPartParser,)
 
+    @exception_handler
     def perform_update(self, serializer):
         candidate = serializer.instance
         candidate_approval = serializer.validated_data.get('candidate_approval')
@@ -537,6 +555,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentSerializer
     # permission_classes = [IsAuthenticated]
 
+    @exception_handler
     def create(self, request, *args, **kwargs):
         exist_appointment = AppointmentModel.objects.filter(candidate_id=request.data.get('candidate')).first()
         if exist_appointment:
@@ -564,6 +583,7 @@ class PDFScoreAPIView(generics.RetrieveUpdateAPIView):
     serializer_class = PDFScoreSerializer
     lookup_field = 'candidate_id'
 
+    @exception_handler
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
@@ -580,6 +600,7 @@ class InterviewerAllScoresAPI(generics.ListAPIView):
     queryset = InterviewerScore.objects.all()
     serializer_class = InterviewerScoreSerializer
 
+    @exception_handler
     def get(self, request, *args, **kwargs):
         email = jwt_manager.get_user_from_auth_header(request)
         user = User.objects.filter(email=email).first()
@@ -592,10 +613,12 @@ class InterviewerCandidateScoreAPI(generics.ListCreateAPIView):
     queryset = QuestionsModel.objects.all()
     serializer_class = InterviewerScoreSerializer
 
+    @exception_handler
     def get_user(self):
         email = jwt_manager.get_user_from_auth_header(self.request)
         return User.objects.filter(email=email).first()
 
+    @exception_handler
     def get(self, request, *args, **kwargs):
         user = self.get_user()
         candidate_id = self.kwargs['candidate_id']
@@ -607,6 +630,7 @@ class InterviewerCandidateScoreAPI(generics.ListCreateAPIView):
         serializer = InterviewerScoreSerializer(queryset, many=True)
         return Response(serializer.data, status=200)
 
+    @exception_handler
     def perform_create(self, serializer):
         candidate_id = self.kwargs['candidate_id']
         user = self.get_user()
@@ -614,6 +638,7 @@ class InterviewerCandidateScoreAPI(generics.ListCreateAPIView):
 
         serializer.save(candidate=candidate, interviewer=user)
 
+    @exception_handler
     def post(self, request, *args, **kwargs):
         candidate_id = self.kwargs['candidate_id']
         candidate_exists = CandidateModel.objects.filter(id=candidate_id).exists()

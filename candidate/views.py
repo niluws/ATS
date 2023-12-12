@@ -22,7 +22,8 @@ from .models import CandidateModel, EducationModel, PreferencesModel, Experience
     SettingsModel, StatusModel, InterviewSettingsModel, ScoreModel, InterviewerScore, QuestionsModel
 from .serializers import ExcelFileSerializer, CandidateSerializer, CandidateUpdateSerializer, \
     AppointmentSerializer, SettingsSerializer, PDFScoreSerializer, InterviewSettingsSerializer, \
-    InterviewerScoreSerializer, UpdateInterviewerScoreSerializer,CandidateAllInterviewerScoreSerializer
+    InterviewerScoreSerializer, UpdateInterviewerScoreSerializer, CandidateAllInterviewerScoreSerializer, \
+    HistoryScoreSerializer
 
 jwt_manager = JWTManager.AuthHandler()
 exception_handler = exception_handler.exception_handler
@@ -494,8 +495,7 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
         resume = serializer.validated_data.get('resume')
 
         requirement = Requirement.objects.all()
-        settings = InterviewSettingsModel.objects.filter(job__title=candidate.job).first()
-
+        settings = InterviewSettingsModel.objects.filter(job__title__icontains=candidate.job).first()
         educations = candidate.educationmodel_set.all()
         experiences_count = candidate.experiencesmodel_set.count()
         current_date = timezone.now()
@@ -508,10 +508,10 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
 
         if exist_appointment is None:
             if candidate.candidate_approval:
-                candidate.score = calculate_skill_score(candidate, educations, requirement, experiences_count)
-                candidate.save(update_fields=['score'])
-
-                if candidate.score >= settings.pass_score:
+                score = ScoreModel.objects.get(candidate_id=candidate.id)
+                score.auto_score = calculate_skill_score(candidate, educations, requirement, experiences_count)
+                score.save()
+                if score.auto_score >= settings.pass_score:
                     try:
                         status_model = StatusModel.objects.get(candidate_id=candidate.id)
                         status_model.status = 'WI'
@@ -521,7 +521,7 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
 
                     schedule_interviews(candidate, settings.interview_duration_minutes, settings.settings.start_work_time,
                                         settings.settings.end_work_time, current_date)
-                elif candidate.score is None or candidate.score <= settings.pass_score:
+                elif score.auto_score is None or score.auto_score <= settings.pass_score:
                     try:
                         status_model = StatusModel.objects.get(candidate_id=candidate.id)
                         status_model.status = 'R'
@@ -726,3 +726,11 @@ class CandidateAllInterviewerScoreAPI(generics.ListAPIView):
         candidate_id = self.kwargs['candidate_id']
         return InterviewerScore.objects.filter(candidate_id=candidate_id)
 
+
+class HistoryScoreAPI(generics.ListAPIView):
+    serializer_class = HistoryScoreSerializer
+    lookup_field = 'candidate_id'
+
+    def get_queryset(self):
+        candidate_id = self.kwargs['candidate_id']
+        return ScoreModel.objects.filter(candidate_id=candidate_id)

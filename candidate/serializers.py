@@ -99,3 +99,10 @@ class CandidateAllInterviewerScoreSerializer(serializers.ModelSerializer):
     class Meta:
         model = InterviewerScore
         fields = '__all__'
+
+
+class HistoryScoreSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = ScoreModel
+        fields = ['candidate', 'auto_score', 'pdf_score', 'interview_score']

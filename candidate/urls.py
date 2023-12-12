@@ -27,5 +27,5 @@ urlpatterns = [
     path('candidate_all_interviewer_score/<uuid:candidate_id>/', views.CandidateAllInterviewerScoreAPI.as_view(),
          name='candidate_all_interviewer_score'),
     path('interview_done/<uuid:candidate_id>/', views.InterviewDoneAPIView.as_view(), name='interview_done'),
-
+    path('score_history/<uuid:candidate_id>/', views.HistoryScoreAPI.as_view(), name='score_history'),
 ]

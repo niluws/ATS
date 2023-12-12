@@ -6,7 +6,6 @@ import requests
 from bs4 import BeautifulSoup
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.files.storage import default_storage
-from django.core.mail import EmailMessage
 from django.db.models import Q
 from django.utils import timezone
 from django.core.files.base import ContentFile
@@ -16,11 +15,8 @@ from openpyxl import load_workbook
 from rest_framework import viewsets, generics, filters, views, parsers
 from rest_framework.response import Response
 
-from authentication.permissions import IsSuperuserOrHR
 from job.models import Requirement
-from utils import config
-from utils.exception_handler import exception_handler
-from authentication import JWTManager
+from utils import JWTManager, exception_handler
 from authentication.models import User
 from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel,\
     SettingsModel, StatusModel, InterviewSettingsModel, ScoreModel, InterviewerScore, QuestionsModel
@@ -29,6 +25,7 @@ from .serializers import ExcelFileSerializer, CandidateSerializer, CandidateUpda
     InterviewerScoreSerializer, UpdateInterviewerScoreSerializer,CandidateAllInterviewerScoreSerializer
 
 jwt_manager = JWTManager.AuthHandler()
+exception_handler = exception_handler.exception_handler
 
 
 @exception_handler
@@ -729,20 +726,3 @@ class CandidateAllInterviewerScoreAPI(generics.ListAPIView):
         candidate_id = self.kwargs['candidate_id']
         return InterviewerScore.objects.filter(candidate_id=candidate_id)
 
-
-class CandidateStatusAPIView(views.APIView):
-
-    @exception_handler
-    def get(self, request):
-        waiting_for_interview = StatusModel.objects.filter(status='WI').count()
-        Approved = StatusModel.objects.filter(status='A').count()
-        Rejected = StatusModel.objects.filter(status='R').count()
-        Hired = StatusModel.objects.filter(status='H').count()
-
-        message = {
-            'waiting for interview': waiting_for_interview,
-            'Approved': Approved,
-            'Rejected': Rejected,
-            'Hired': Hired,
-        }
-        return Response({'success': True, 'status': 200, 'message': message})

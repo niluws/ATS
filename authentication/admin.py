@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from user.models import Profile
+from employee.models import Profile
 from .models import User
 
 

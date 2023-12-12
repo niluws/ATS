@@ -7,15 +7,13 @@ from django.core.mail import EmailMessage
 from rest_framework import generics, views
 from rest_framework.response import Response
 
-from utils import config
-from utils.exception_handler import exception_handler
-from user.models import Profile
-from . import JWTManager
+from utils import config, JWTManager, exception_handler
 from .models import User, LogModel
 from .serializers import RegisterSerializer, LoginSerializer, RefreshTokenSerializer, LogoutSerializer, MeSerializer, \
     VerifyEmailSerializer, LogSerializer
 
 jwt_manager = JWTManager.AuthHandler()
+exception_handler = exception_handler.exception_handler
 
 
 @exception_handler

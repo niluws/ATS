@@ -1,8 +1,8 @@
 from rest_framework import permissions
 from rest_framework.exceptions import AuthenticationFailed
 
-from user.models import Profile
-from . import JWTManager
+from employee.models import Profile
+from utils import JWTManager
 from .models import User
 
 jwt_manager = JWTManager.AuthHandler()

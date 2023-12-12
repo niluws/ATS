@@ -29,7 +29,8 @@ urlpatterns = [
     path("auth/", include('authentication.urls', namespace='authentication')),
     path("candidate/", include('candidate.urls', namespace='candidate')),
     path("job/", include('job.urls', namespace='job')),
-    path("user/", include('user.urls', namespace='user')),
+    path("statistic/", include('statistic.urls', namespace='statistic')),
+    path("employee/", include('employee.urls', namespace='employee')),
 ]
 
 if settings.DEBUG:

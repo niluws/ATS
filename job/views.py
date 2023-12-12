@@ -2,21 +2,21 @@ from rest_framework import viewsets, generics, parsers
 from rest_framework.response import Response
 
 from authentication.models import User
-from .models import Job, NewPositionModel, JobRequirement, QuestionsModel
-from .serializers import JobSerializer, BasePositionSerializer, HRApprovalSerializer, TDApprovalSerializer, \
-    JobRequirementSerializer, QuestionsSerializer
+from .models import Job, NewRequestModel, JobRequirement, QuestionsModel, Role
+from .serializers import JobSerializer, BaseNewRequestSerializer, HRApprovalSerializer, TDApprovalSerializer, \
+    JobRequirementSerializer, QuestionsSerializer, RoleSerializer
 
 
-class NewPositionViewSet(viewsets.ModelViewSet):
-    serializer_class = BasePositionSerializer
-    queryset = NewPositionModel.objects.all()
+class NewRequestViewSet(viewsets.ModelViewSet):
+    serializer_class = BaseNewRequestSerializer
+    queryset = NewRequestModel.objects.all()
     # permission_classes = [IsAuthenticated]
     parser_classes = (parsers.MultiPartParser,)
 
 
 class HRApproval(generics.RetrieveUpdateAPIView):
     serializer_class = HRApprovalSerializer
-    queryset = NewPositionModel.objects.all()
+    queryset = NewRequestModel.objects.all()
     # permission_classes = [IsSuperuserOrHR]
     parser_classes = (parsers.MultiPartParser,)
 
@@ -41,7 +41,7 @@ class HRApproval(generics.RetrieveUpdateAPIView):
 
 class TDApproval(generics.RetrieveUpdateAPIView):
     serializer_class = TDApprovalSerializer
-    queryset = NewPositionModel.objects.all()
+    queryset = NewRequestModel.objects.all()
 
     # permission_classes = [IsSuperuserOrTD]
 
@@ -78,3 +78,8 @@ class JobRequirementViewSet(viewsets.ModelViewSet):
 class QuestionsViewSet(viewsets.ModelViewSet):
     queryset = QuestionsModel.objects.all()
     serializer_class = QuestionsSerializer
+
+
+class RoleViewSet(viewsets.ModelViewSet):
+    queryset = Role.objects.all()
+    serializer_class = RoleSerializer

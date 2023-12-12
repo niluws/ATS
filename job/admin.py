@@ -1,9 +1,9 @@
 from django.contrib import admin
 
-from .models import Job, JobRequirement, Role, NewPositionModel, Requirement
+from .models import Job, JobRequirement, Role, NewRequestModel, Requirement
 
 
-@admin.register(NewPositionModel)
+@admin.register(NewRequestModel)
 class UserAdmin(admin.ModelAdmin):
     list_display = ('position_title', 'contract_type', 'reason', 'education_level', 'experience_level', 'department',
                     'quantity', 'budget', 'hr_approval', 'assigned_to_td')

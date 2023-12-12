@@ -7,9 +7,10 @@ app_name = 'job'
 
 router = DefaultRouter()
 router.register('job_title', views.JobViewSet)
-router.register('new_request', views.NewPositionViewSet, basename="new_postion")
+router.register('new_request', views.NewRequestViewSet, basename="new_request")
 router.register('job_requirement', views.JobRequirementViewSet, basename="job_requirement")
-router.register(r'question', views.QuestionsViewSet)
+router.register(r'question', views.QuestionsViewSet, basename="question")
+router.register(r'role', views.RoleViewSet, basename="role")
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -37,13 +37,15 @@ class JobRequirement(models.Model):
     requirement = models.ForeignKey(Requirement, on_delete=models.CASCADE)
 
 
-class NewPositionModel(models.Model):
+class NewRequestModel(models.Model):
     CONTRACT_TYPE_CHOICES = (
         ("FULL-TIME", "Full-time"),
         ("PART-TIME", "Part-time"),
     )
     STATUS_CHOICES = (
-        ("A", "Approved"),
+        ("HA", "HR approved"),
+        ("TA", " TD approved"),
+        ("R", "Rejected"),
         ("P", "Pending"),
     )
     REASON_CHOICES = (
@@ -71,14 +73,14 @@ class NewPositionModel(models.Model):
     create_at = models.DateTimeField(auto_now_add=True)
     position_title = models.OneToOneField(Job, on_delete=models.CASCADE)
     contract_type = models.CharField(max_length=9, choices=CONTRACT_TYPE_CHOICES)
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='P', null=True, blank=True)
+    status = models.CharField(max_length=2, choices=STATUS_CHOICES, default='P', null=True, blank=True)
     reason = models.CharField(max_length=8, choices=REASON_CHOICES)
     education_level = models.CharField(max_length=8, default='BACHELOR', choices=EDUCATION_LEVEL_CHOICES)
     experience_level = models.CharField(max_length=10, choices=EXPERIENCE_LEVEL_CHOICES)
     department = models.CharField(max_length=8, choices=DEPARTMENT_CHOICES)
     quantity = models.IntegerField()
     explanation = models.TextField(null=True, blank=True)
-    hr_approval = models.BooleanField(default=False)
+    hr_approval = models.BooleanField(null=True, blank=True)
     td_approval = models.BooleanField(null=True, blank=True)
     budget = models.BigIntegerField()
     assigned_to_td = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True,
@@ -92,15 +94,18 @@ class NewPositionModel(models.Model):
             td_user = User.objects.filter(profile__role__title='TD', profile__department=self.department).first()
             if td_user:
                 self.assigned_to_td = td_user
-        else:
+                self.status = 'HA'
+        elif self.hr_approval is False:
             self.assigned_to_td = None
+            self.status = 'R'
 
-        if not self.td_approval:
+        if self.td_approval is False:
             self.interviewer.clear()
-            self.status = 'P'
-        elif self.td_approval:
-            self.status = 'A'
-        super(NewPositionModel, self).save(*args, **kwargs)
+            self.status = 'R'
+        elif self.td_approval is True:
+            self.status = 'TA'
+
+        super(NewRequestModel, self).save(*args, **kwargs)
 
     class Meta:
         verbose_name = 'new position'

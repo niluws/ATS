@@ -1,20 +1,20 @@
 from rest_framework import serializers
 
-from .models import Job, NewPositionModel, Requirement, JobRequirement, QuestionsModel
+from .models import Job, NewRequestModel, Requirement, JobRequirement, QuestionsModel, Role
 
 
-class BasePositionSerializer(serializers.ModelSerializer):
+class BaseNewRequestSerializer(serializers.ModelSerializer):
     class Meta:
-        model = NewPositionModel
+        model = NewRequestModel
         fields = ['id', 'position_title', 'contract_type', 'reason', 'education_level', 'experience_level',
                   'department', 'quantity', 'budget', 'status']
         read_only_fields = ['status']
 
 
-class HRApprovalSerializer(BasePositionSerializer):
-    class Meta(BasePositionSerializer.Meta):
-        fields = BasePositionSerializer.Meta.fields + ['hr_approval', 'assigned_to_td', 'is_advertised', 'message']
-        read_only_fields = BasePositionSerializer.Meta.fields + ['assigned_to_td']
+class HRApprovalSerializer(BaseNewRequestSerializer):
+    class Meta(BaseNewRequestSerializer.Meta):
+        fields = BaseNewRequestSerializer.Meta.fields + ['hr_approval', 'assigned_to_td', 'is_advertised', 'message']
+        read_only_fields = BaseNewRequestSerializer.Meta.fields + ['assigned_to_td']
 
 
 class TDApprovalSerializer(HRApprovalSerializer):
@@ -32,6 +32,12 @@ class TDApprovalSerializer(HRApprovalSerializer):
 class QuestionsSerializer(serializers.ModelSerializer):
     class Meta:
         model = QuestionsModel
+        fields = '__all__'
+
+
+class RoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Role
         fields = '__all__'
 
 

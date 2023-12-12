@@ -1,8 +1,7 @@
-from rest_framework import viewsets, generics, parsers, views
+from rest_framework import viewsets, generics, parsers
 from rest_framework.response import Response
 
 from authentication.models import User
-from authentication.permissions import IsSuperuserOrTD
 from .models import Job, NewPositionModel, JobRequirement, QuestionsModel
 from .serializers import JobSerializer, BasePositionSerializer, HRApprovalSerializer, TDApprovalSerializer, \
     JobRequirementSerializer, QuestionsSerializer
@@ -31,7 +30,8 @@ class HRApproval(generics.RetrieveUpdateAPIView):
         td_user = User.objects.filter(profile__role__title='TD',
                                       profile__department=serializer.data.get('department')).first()
         if td_user is None:
-            return Response({'status': 400, 'error': 'No TD user exists for the specified department'})
+            return Response(
+                {'success': False, 'status': 400, 'error': 'No TD user exists for the specified department'})
 
         if getattr(instance, '_prefetched_objects_cache', None):
             instance._prefetched_objects_cache = {}
@@ -42,19 +42,24 @@ class HRApproval(generics.RetrieveUpdateAPIView):
 class TDApproval(generics.RetrieveUpdateAPIView):
     serializer_class = TDApprovalSerializer
     queryset = NewPositionModel.objects.all()
-    permission_classes = [IsSuperuserOrTD]
+
+    # permission_classes = [IsSuperuserOrTD]
 
     def put(self, request, *args, **kwargs):
         instance = self.get_object()
+
         if not instance.hr_approval:
-            return Response({"error": "HR approval is required for update this data.Wait for HR approval"}, status=403)
-        if instance.td_approval is False and 'interviewer' not in request.data:
-            return Response({"error": "The 'interviewer' field is required.You should add interviewer"}, status=400)
+            return Response({'success': False, 'status': 400,
+                             "error": "HR approval is required for update this data.Wait for HR approval"})
 
         serializer = self.get_serializer(instance, data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-
+        if serializer.data.get('td_approval') is True and 'interviewer' not in request.data:
+            instance.td_approval = None
+            instance.save()
+            return Response({'success': False, 'status': 400,
+                             "error": "The 'interviewer' field is required.You should add interviewer"})
         return Response(serializer.data)
 
 
@@ -73,5 +78,3 @@ class JobRequirementViewSet(viewsets.ModelViewSet):
 class QuestionsViewSet(viewsets.ModelViewSet):
     queryset = QuestionsModel.objects.all()
     serializer_class = QuestionsSerializer
-
-

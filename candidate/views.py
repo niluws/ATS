@@ -685,13 +685,40 @@ class InterviewDoneAPIView(generics.ListAPIView):
     def get(self, request, *args, **kwargs):
         candidate_id = self.kwargs['candidate_id']
         queryset = self.get_queryset()
+        candidate = CandidateModel.objects.get(id=candidate_id)
+        settings = InterviewSettingsModel.objects.filter(job__title=candidate.job).first()
+
         score = ScoreModel.objects.get(candidate_id=candidate_id)
         total = 0
         for total_score in queryset:
             total += total_score.score
         score.interview_score = total
         score.save()
-        return Response({'success': True, 'status': 200, 'message': f'Total score:{total} saved successfully'})
+        if not settings.interview_pass_score:
+            return Response({'success': False, 'status': 404, 'message': 'You have not set pass score for interview'})
+
+        status_model = StatusModel.objects.get(candidate_id=candidate.id)
+        if total >= settings.interview_pass_score:
+            status_model.status = 'A'
+            status_model.save()
+            message = {
+                'message': 'Total score saved successfully.',
+                'score': total,
+                'candidate status': 'Approved'
+
+            }
+            return Response({'success': True, 'status': 200, 'message': message})
+
+        else:
+            status_model.status = 'R'
+            status_model.save()
+            message = {
+                'message': 'Total score saved successfully.',
+                'score': total,
+                'candidate status': 'Rejected'
+
+            }
+            return Response({'success': True, 'status': 200, 'message': message})
 
 
 class CandidateAllInterviewerScoreAPI(generics.ListAPIView):
@@ -702,3 +729,20 @@ class CandidateAllInterviewerScoreAPI(generics.ListAPIView):
         candidate_id = self.kwargs['candidate_id']
         return InterviewerScore.objects.filter(candidate_id=candidate_id)
 
+
+class CandidateStatusAPIView(views.APIView):
+
+    @exception_handler
+    def get(self, request):
+        waiting_for_interview = StatusModel.objects.filter(status='WI').count()
+        Approved = StatusModel.objects.filter(status='A').count()
+        Rejected = StatusModel.objects.filter(status='R').count()
+        Hired = StatusModel.objects.filter(status='H').count()
+
+        message = {
+            'waiting for interview': waiting_for_interview,
+            'Approved': Approved,
+            'Rejected': Rejected,
+            'Hired': Hired,
+        }
+        return Response({'success': True, 'status': 200, 'message': message})

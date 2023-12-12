@@ -43,8 +43,8 @@ class NewPositionModel(models.Model):
         ("PART-TIME", "Part-time"),
     )
     STATUS_CHOICES = (
-        ("APPROVED", "Approved"),
-        ("PENDING", "Pending"),
+        ("A", "Approved"),
+        ("P", "Pending"),
     )
     REASON_CHOICES = (
         ("NEW-ROLE", "New role"),
@@ -71,7 +71,7 @@ class NewPositionModel(models.Model):
     create_at = models.DateTimeField(auto_now_add=True)
     position_title = models.OneToOneField(Job, on_delete=models.CASCADE)
     contract_type = models.CharField(max_length=9, choices=CONTRACT_TYPE_CHOICES)
-    status = models.CharField(max_length=8, choices=STATUS_CHOICES, null=True, blank=True)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='P', null=True, blank=True)
     reason = models.CharField(max_length=8, choices=REASON_CHOICES)
     education_level = models.CharField(max_length=8, default='BACHELOR', choices=EDUCATION_LEVEL_CHOICES)
     experience_level = models.CharField(max_length=10, choices=EXPERIENCE_LEVEL_CHOICES)
@@ -95,9 +95,11 @@ class NewPositionModel(models.Model):
         else:
             self.assigned_to_td = None
 
-        if self.td_approval==False:
+        if not self.td_approval:
             self.interviewer.clear()
-
+            self.status = 'P'
+        elif self.td_approval:
+            self.status = 'A'
         super(NewPositionModel, self).save(*args, **kwargs)
 
     class Meta:

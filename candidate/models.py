@@ -17,6 +17,7 @@ class InterviewSettingsModel(models.Model):
     settings = models.ForeignKey(SettingsModel, on_delete=models.CASCADE)
     interview_duration_minutes = models.IntegerField(null=True, blank=True)
     pass_score = models.IntegerField(null=True, blank=True)
+    interview_pass_score = models.IntegerField(null=True, blank=True)
 
 
 class CandidateModel(models.Model):
@@ -103,6 +104,7 @@ class StatusModel(models.Model):
     STATUS_CHOICES = (
         ("WI", "Waiting for interview"),
         ("R", "Rejected"),
+        ("A", "Approved"),
         ("H", "Hired"),
     )
     candidate = models.OneToOneField(CandidateModel, on_delete=models.CASCADE)

@@ -16,7 +16,7 @@ from rest_framework import viewsets, generics, filters, views, parsers
 from rest_framework.response import Response
 
 from job.models import Requirement
-from utils import JWTManager, exception_handler
+from utils import JWTManager, handler
 from authentication.models import User
 from .models import CandidateModel, EducationModel, PreferencesModel, ExperiencesModel, AppointmentModel,\
     SettingsModel, StatusModel, InterviewSettingsModel, ScoreModel, InterviewerScore, QuestionsModel
@@ -26,7 +26,7 @@ from .serializers import ExcelFileSerializer, CandidateSerializer, CandidateUpda
     HistoryScoreSerializer
 
 jwt_manager = JWTManager.AuthHandler()
-exception_handler = exception_handler.exception_handler
+exception_handler = handler.exception_handler
 
 
 @exception_handler

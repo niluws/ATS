@@ -4,9 +4,9 @@ from rest_framework.response import Response
 
 from .serializers import StatusModelSerializer
 from candidate.models import StatusModel, CandidateModel
-from utils import exception_handler
+from utils import handler
 
-exception_handler = exception_handler.exception_handler
+exception_handler = handler.exception_handler
 
 
 class CandidateStatusAPIView(views.APIView):

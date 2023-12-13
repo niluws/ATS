@@ -47,7 +47,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = 'email'
 
 
-class LogModel(models.Model):
+class LogUserModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     event = models.CharField(max_length=150)
+
+
+class LogExceptionModel(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    error = models.CharField(max_length=450)

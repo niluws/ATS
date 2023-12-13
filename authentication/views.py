@@ -1,5 +1,4 @@
 import uuid
-from functools import wraps
 
 import redis
 from django.contrib.sites.shortcuts import get_current_site
@@ -7,29 +6,14 @@ from django.core.mail import EmailMessage
 from rest_framework import generics, views
 from rest_framework.response import Response
 
-from utils import config, JWTManager, exception_handler
-from .models import User, LogModel
+from utils import config, JWTManager, handler
+from .models import User, LogUserModel
 from .serializers import RegisterSerializer, LoginSerializer, RefreshTokenSerializer, LogoutSerializer, MeSerializer, \
     VerifyEmailSerializer, LogSerializer
 
 jwt_manager = JWTManager.AuthHandler()
-exception_handler = exception_handler.exception_handler
-
-
-@exception_handler
-def log_user_activity(func):
-    @wraps(func)
-    def wrapper_func(self, request, *args, **kwargs):
-        response = func(self, request, *args, **kwargs)
-        message = response.data.get("message")
-        if message:
-            user_id = message.get("user_id")
-            message = message.get("message")
-            LogModel.objects.create(event=message, user_id=user_id)
-
-        return response
-
-    return wrapper_func
+exception_handler = handler.exception_handler
+log_user_activity = handler.log_user_activity
 
 
 @exception_handler
@@ -50,7 +34,6 @@ class RegisterAPIView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
     @exception_handler
-    @log_user_activity
     def post(self, request, *args, **kwargs):
         try:
 
@@ -71,14 +54,16 @@ class RegisterAPIView(generics.CreateAPIView):
             user.save()
 
             message = {
-                'user_id': user.pk,
-                'message': 'Registered successfully',
+                'message': 'You registered successfully',
                 'first_name': serializer.validated_data.get('first_name'),
                 'last_name': serializer.validated_data.get('last_name'),
                 'email': email,
             }
-
-            return Response({'success': True, 'status': 201, 'message': message})
+            log = {
+                'event': 'Registered',
+                'user_id': user.pk,
+            }
+            return Response({'success': True, 'status': 201, 'message': message, 'log': log})
         except Exception as e:
             return Response({'success': False, 'status': 400, 'error': str(e)})
 
@@ -87,7 +72,6 @@ class LoginAPIView(generics.CreateAPIView):
     serializer_class = LoginSerializer
 
     @exception_handler
-    @log_user_activity
     def create(self, request, *args, **kwargs):
         email = request.data.get('email')
         password = request.data.get('password')
@@ -103,12 +87,15 @@ class LoginAPIView(generics.CreateAPIView):
                 login_token = jwt_manager.encode_login_token(user.email)
 
                 message = {
-                    'message': 'Logged in successfully',
+                    'message': 'You logged in successfully',
                     'data': login_token,
                     'user_id': user.pk,
                 }
-
-                return Response({'success': True, 'status': 200, 'message': message})
+                log = {
+                    'event': 'Logged in',
+                    'user_id': user.pk,
+                }
+                return Response({'success': True, 'status': 200, 'message': message,'log': log})
             else:
                 return Response({'success': False, 'status': 401, 'error': 'Verify your account'})
         else:
@@ -119,17 +106,19 @@ class LogoutAPIView(generics.GenericAPIView):
     serializer_class = LogoutSerializer
 
     @exception_handler
-    @log_user_activity
     def get(self, request):
         auth = jwt_manager.get_user_from_auth_header(self.request)
         user = User.objects.get(email=auth)
         if auth:
             message = {
-                'message': 'Logout successfully',
+                'message': 'You Logout successfully',
                 'user_id': user.pk,
             }
-
-            return Response({'success': True, 'status': 200, 'message': message})
+            log = {
+                'event': 'Logout',
+                'user_id': user.pk,
+            }
+            return Response({'success': True, 'status': 200, 'message': message, 'log': log})
         else:
             return Response({'success': False, 'status': 401, 'error': 'User is not authenticated'})
 
@@ -206,8 +195,8 @@ class VerifyEmailAPIView(generics.CreateAPIView):
         user = User.objects.filter(email=email).first()
         if user:
             if user.is_active is False:
-                current_site = get_current_site(self.request)
-                generate_and_send_otp(email, current_site)
+                # current_site = get_current_site(self.request)
+                # generate_and_send_otp(email, current_site)
                 return Response({'success': True, 'status': 200, 'message': 'Email sent successfully.'})
 
             else:
@@ -218,5 +207,5 @@ class VerifyEmailAPIView(generics.CreateAPIView):
 
 
 class LogAPIView(generics.ListAPIView):
-    queryset = LogModel.objects.all()
+    queryset = LogUserModel.objects.all()
     serializer_class = LogSerializer

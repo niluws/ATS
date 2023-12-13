@@ -27,6 +27,7 @@ class CandidateModel(models.Model):
     email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=15)
     resume = models.FileField(upload_to='resumes/')
+    avatar = models.ImageField(upload_to='avatar/', null=True, blank=True)
     request_date = models.CharField(max_length=15)
     create_at = models.DateTimeField(auto_now_add=True)
     update_at = models.DateTimeField(auto_now=True)
@@ -110,6 +111,7 @@ class StatusModel(models.Model):
     candidate = models.OneToOneField(CandidateModel, on_delete=models.CASCADE)
     status = models.CharField(max_length=2, choices=STATUS_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class InterviewerScore(models.Model):

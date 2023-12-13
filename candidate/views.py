@@ -211,6 +211,14 @@ class UploadExcelAPIView(generics.CreateAPIView):
             experiences_to_save.append(new_experience)
 
     @exception_handler
+    def extract_image(self, soup, name):
+        image_element = soup.select('div.candidate-box-avatar img')
+        if image_element:
+            image_url = image_element[0]['src']
+            image_content = requests.get(image_url).content
+            return ContentFile(image_content, name=f'{name}.jpg')
+
+    @exception_handler
     def extract_languages(self, soup):
         language_element = soup.select('div.card-header:-soup-contains("زبان") + div.card-body div.list-group-item')
         return [re.sub(r'\s+', ' ', language.find('label').get_text()) for language in
@@ -231,7 +239,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
     def process_row(self, row, file_path, user_email, candidates_to_create, experiences_to_save, preferences_to_save,
                     education_to_save):
         hyperlink = row[6].hyperlink
-
+        name = row[2].value
         if hyperlink is not None:
             response = requests.get(hyperlink.target)
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -240,10 +248,11 @@ class UploadExcelAPIView(generics.CreateAPIView):
             unique_id = uuid.uuid1()
             jalali_update_date = jdatetime.fromgregorian(datetime=timezone.now())
             formatted_update_date = jalali_update_date.strftime('%Y_%m_%d_%H.%M')
+            image_content = self.extract_image(soup, name)
 
             candidate_data = {
                 'id': unique_id,
-                'name': row[2].value,
+                'name': name,
                 'job': row[1].value,
                 'phone_number': row[3].value,
                 'email': user_email,
@@ -263,6 +272,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
                                                                                         class_='u-textJustify') else None,
                 'skills': self.extract_skills(soup),
                 'languages': self.extract_languages(soup),
+                'avatar': image_content
             }
             candidates_to_create.append(CandidateModel(**candidate_data))
             self.save_experiences(soup, unique_id, experiences_to_save)
@@ -364,19 +374,18 @@ class SchedulerAPIView(views.APIView):
         current_date = timezone.now()
         count_appointment = 0
         no_score = 0
-        job_titles = set(candidate.job for candidate in candidates)
-        settings_dict = {setting.job.title: setting for setting in InterviewSettingsModel.objects.filter(job__title__in=job_titles)}
-
+        no_setting = 0
         for candidate in candidates:
-
             score = candidate.scoremodel_set.last()
 
             if score.pdf_score is None:
                 no_score += 1
                 continue
-            settings = settings_dict.get(candidate.job)
+
+            settings = InterviewSettingsModel.objects.filter(job__title__icontains=candidate.job).last()
             if settings is None:
-                return Response({'success': False, 'status': 400, 'error': 'You have no data related to this job settings.'})
+                no_setting += 1
+                continue
             if score.pdf_score >= settings.pass_score:
                 count_appointment += 1
                 print('accepted:Send Interview Invitation date')
@@ -407,13 +416,14 @@ class SchedulerAPIView(views.APIView):
                 'error': 'No interview scheduled!',
                 'reason1': 'All eligible candidates have already scheduled',
                 'reason2': 'HR have not scored to PDFs',
-                'reason3': 'No eligible candidates in DB'
+                'reason3': 'No settings for related job title'
             }
             return Response(
                 {'success': True, 'status': 400, 'error': message})
         message = {
             'message': f'Interview time scheduled for {count_appointment} candidates',
             'have no score': f'{no_score} candidates',
+            'no setting': f'no setting for {no_setting} candidates'
         }
         return Response({'success': True, 'status': 200, 'message': message})
 

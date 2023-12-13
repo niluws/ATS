@@ -2,6 +2,7 @@ from django.db.models import Count
 from rest_framework import views
 from rest_framework.response import Response
 
+from .serializers import StatusModelSerializer
 from candidate.models import StatusModel, CandidateModel
 from utils import exception_handler
 
@@ -17,11 +18,16 @@ class CandidateStatusAPIView(views.APIView):
         rejected = StatusModel.objects.filter(status='R').count()
         hired = StatusModel.objects.filter(status='H').count()
 
+        queryset = StatusModel.objects.all()
+        serializer = StatusModelSerializer(queryset, many=True)
+
         message = {
-            'waiting for interview': waiting_for_interview,
+            'data': serializer.data,
+            'waiting_for_interview': waiting_for_interview,
             'Approved': approved,
             'Rejected': rejected,
             'Hired': hired,
+
         }
         return Response({'success': True, 'status': 200, 'message': message})
 

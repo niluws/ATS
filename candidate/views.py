@@ -49,7 +49,6 @@ def calculate_skill_score(candidate, educations, requirement, experiences_count)
         for edu in educations:
             if en.lower() in ''.join([edu.level, edu.major]).lower() or fa in ''.join([edu.level, edu.major]):
                 if not req_counted:
-                    print(fa)
                     total_score += req.score
                     req_counted = True
                     break
@@ -58,7 +57,6 @@ def calculate_skill_score(candidate, educations, requirement, experiences_count)
             if skill:
                 if en.lower() in ''.join(skill).lower() or fa in ''.join(skill):
                     if not req_counted:
-                        print(fa)
                         total_score += req.score
                         break
     return total_score
@@ -338,16 +336,16 @@ class NewCandidateScoreAPIView(views.APIView):
     @exception_handler
     def get(self, request, *args, **kwargs):
         candidates = CandidateModel.objects.filter(scoremodel__isnull=True).prefetch_related('experiencesmodel_set', 'educationmodel_set')
-
         requirement = Requirement.objects.all()
-
         count = 0
         for candidate in candidates:
             educations = candidate.educationmodel_set.all()
             experiences_count = candidate.experiencesmodel_set.count()
+            total_score = calculate_skill_score(candidate, educations, requirement, experiences_count)
+            print(total_score)
             ScoreModel.objects.create(
                 candidate_id=candidate.id,
-                auto_score=calculate_skill_score(candidate, educations, requirement, experiences_count),
+                auto_score=total_score,
                 pdf_score=None,
             )
             count += 1
@@ -375,6 +373,7 @@ class SchedulerAPIView(views.APIView):
         count_appointment = 0
         no_score = 0
         no_setting = 0
+        reject = 0
         for candidate in candidates:
             score = candidate.scoremodel_set.last()
 
@@ -401,6 +400,7 @@ class SchedulerAPIView(views.APIView):
 
             else:
                 print('rejected')
+                reject += 1
                 try:
                     status_model = StatusModel.objects.get(candidate_id=candidate.id)
                     status_model.status = 'R'
@@ -423,7 +423,8 @@ class SchedulerAPIView(views.APIView):
         message = {
             'message': f'Interview time scheduled for {count_appointment} candidates',
             'have no score': f'{no_score} candidates',
-            'no setting': f'no setting for {no_setting} candidates'
+            'no setting': f'no setting for {no_setting} candidates',
+            'rejected': f'{reject} candidates rejected'
         }
         return Response({'success': True, 'status': 200, 'message': message})
 
@@ -529,12 +530,12 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
         if avatar:
             file_path = f"{candidate.name}_{formatted_date}.jpg"
             candidate.avatar.save(file_path, avatar, save=True)
-
         if exist_appointment is None:
             if candidate.candidate_approval:
                 score = ScoreModel.objects.get(candidate_id=candidate.id)
                 score.auto_score = calculate_skill_score(candidate, educations, requirement, experiences_count)
                 score.save()
+
                 if score.auto_score >= settings.pass_score:
                     try:
                         status_model = StatusModel.objects.get(candidate_id=candidate.id)
@@ -708,6 +709,7 @@ class InterviewDoneAPIView(generics.ListAPIView):
         queryset = self.get_queryset()
         candidate = CandidateModel.objects.get(id=candidate_id)
         settings = InterviewSettingsModel.objects.filter(job__title=candidate.job).first()
+        no_setting=0
 
         score = ScoreModel.objects.get(candidate_id=candidate_id)
         total = 0
@@ -715,8 +717,11 @@ class InterviewDoneAPIView(generics.ListAPIView):
             total += total_score.score
         score.interview_score = total
         score.save()
+        if settings is None:
+            return Response({'success': False, 'status': 404, 'error': 'Set a setting for related job title'})
+
         if not settings.interview_pass_score:
-            return Response({'success': False, 'status': 404, 'message': 'You have not set pass score for interview'})
+            return Response({'success': False, 'status': 404, 'error': 'You have not set pass score for interview'})
 
         status_model = StatusModel.objects.get(candidate_id=candidate.id)
         if total >= settings.interview_pass_score:

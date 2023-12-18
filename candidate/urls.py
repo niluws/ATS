@@ -23,7 +23,7 @@ urlpatterns = [
     path('interviewer_scores/<uuid:candidate_id>/', views.InterviewerCandidateScoreAPI.as_view(),
          name='candidate_score_update'),
     path('interviewer_scores/', views.InterviewerAllScoresAPI.as_view(), name='interviewer_scores'),
-    path('update_interviewer_scores/<int:pk>/', views.UpdateInterviewerCandidateScoreAPI.as_view(),
+    path('interviewer_scores/<int:pk>/', views.UpdateInterviewerCandidateScoreAPI.as_view(),
          name='update_interviewer_scores'),
     path('candidate_all_interviewer_score/<uuid:candidate_id>/', views.CandidateAllInterviewerScoreAPI.as_view(),
          name='candidate_all_interviewer_score'),

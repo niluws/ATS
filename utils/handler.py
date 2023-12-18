@@ -9,7 +9,8 @@ def log_user_activity(func):
     @wraps(func)
     def wrapper_func(self, request, *args, **kwargs):
         response = func(self, request, *args, **kwargs)
-        if response and ('log' in response.data or 'error' in response.data):
+
+        if response and type(response) is str and ('log' in response.data or 'error' in response.data):
             log = response.data.get("log")
             error = response.data.get("error")
             if log:

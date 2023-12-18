@@ -2,9 +2,9 @@ from django.db.models import Count
 from rest_framework import views
 from rest_framework.response import Response
 
-from .serializers import StatusModelSerializer
 from candidate.models import StatusModel, CandidateModel
 from utils import handler
+from .serializers import StatusModelSerializer
 
 exception_handler = handler.exception_handler
 
@@ -32,14 +32,20 @@ class CandidateStatusAPIView(views.APIView):
         return Response({'success': True, 'status': 200, 'message': message})
 
 
-class CandidateJobStatisticAPIView(views.APIView):
+class CandidateStatisticsAPIView(views.APIView):
 
     @exception_handler
     def get(self, request):
-        statistic = (
-            CandidateModel.objects.values('job').annotate(candidate_count=Count('id')).order_by('job')
-        )
+        job_statistic = CandidateModel.objects.values('job').annotate(candidate_count=Count('id'))
 
-        result = {item['job']: item['candidate_count'] for item in statistic}
+        gender_statistic = CandidateModel.objects.values('gender').annotate(gender_count=Count('id'))
+
+        job_result = {item['job']: item['candidate_count'] for item in job_statistic}
+        gender_result = {item['gender']: item['gender_count'] for item in gender_statistic}
+
+        result = {
+            'job_count': job_result,
+            'gender_count': gender_result
+        }
 
         return Response({'success': True, 'status': 200, 'message': result})

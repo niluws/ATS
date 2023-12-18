@@ -44,7 +44,7 @@ class NewRequestModel(models.Model):
     )
     STATUS_CHOICES = (
         ("HA", "HR approved"),
-        ("TA", " TD approved"),
+        ("TA", "TD approved"),
         ("R", "Rejected"),
         ("P", "Pending"),
     )
@@ -107,6 +107,3 @@ class NewRequestModel(models.Model):
 
         super(NewRequestModel, self).save(*args, **kwargs)
 
-    class Meta:
-        verbose_name = 'new position'
-        verbose_name_plural = 'new positions'

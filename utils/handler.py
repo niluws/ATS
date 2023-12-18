@@ -9,14 +9,15 @@ def log_user_activity(func):
     @wraps(func)
     def wrapper_func(self, request, *args, **kwargs):
         response = func(self, request, *args, **kwargs)
-        log = response.data.get("log")
-        error = response.data.get("error")
-        if log:
-            user_id = log.get("user_id")
-            event = log.get("event")
-            LogUserModel.objects.create(event=event, user_id=user_id)
-        elif error:
-            LogExceptionModel.objects.create(error=error)
+        if response and ('log' in response.data or 'error' in response.data):
+            log = response.data.get("log")
+            error = response.data.get("error")
+            if log:
+                user_id = log.get("user_id")
+                event = log.get("event")
+                LogUserModel.objects.create(event=event, user_id=user_id)
+            elif error:
+                LogExceptionModel.objects.create(error=error)
         return response
 
     return wrapper_func

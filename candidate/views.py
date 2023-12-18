@@ -23,7 +23,7 @@ from .models import CandidateModel, EducationModel, PreferencesModel, Experience
 from .serializers import ExcelFileSerializer, CandidateSerializer, CandidateUpdateSerializer, \
     AppointmentSerializer, SettingsSerializer, PDFScoreSerializer, InterviewSettingsSerializer, \
     InterviewerScoreSerializer, UpdateInterviewerScoreSerializer, CandidateAllInterviewerScoreSerializer, \
-    HistoryScoreSerializer
+    HistoryScoreSerializer, CandidateUserUpdateSerializer
 
 jwt_manager = JWTManager.AuthHandler()
 exception_handler = handler.exception_handler
@@ -457,18 +457,28 @@ class OldCandidateInvitationAPIView(generics.ListAPIView):
         candidates = CandidateModel.objects.filter(job=job_param).filter(Q(appointmentmodel__interview_start_time__isnull=True) | Q(statusmodel__status='R'))
         current_site = get_current_site(self.request)
         for candidate in candidates:
-            self.send_invitation_email(candidate, job_param, current_site, candidate.id)
+            print(candidate.name)
+            print(candidate.job)
+            print(f'Hello {candidate.name} Please consider updating your resume and applying for {job_param} position if you are interested Click on the following link to apply:http://{current_site.domain}/candidate/candidate_update/{candidate.id}' )
+
+            # EmailMessage('Job Opportunity Update',
+            #              f'Hello {candidate.name} \n' f'Please consider updating your resume and applying for {job_param} position if you are interested.\n Click on the following link to apply:http://{current_site.domain}/candidate/candidate_update/{candidate_id}',
+            #              config.EMAIL_HOST_USER, [candidate.email]).send()
 
         return self.list(request, *args, **kwargs)
 
-    @exception_handler
-    def send_invitation_email(self, candidate, job_param, current_site, candidate_id):
-        print(
-            f'Hello {candidate.name} Please consider updating your resume and applying for {job_param} position if you are interested Click on the following link to apply:http://{current_site.domain}/candidate/candidate_update/{candidate_id}', )
 
-        # EmailMessage('Job Opportunity Update',
-        #              f'Hello {candidate.name} \n' f'Please consider updating your resume and applying for {job_param} position if you are interested.\n Click on the following link to apply:http://{current_site.domain}/candidate/candidate_update/{candidate_id}',
-        #              config.EMAIL_HOST_USER, [candidate.email]).send()
+class CandidateUserUpdateAPIView(generics.RetrieveUpdateAPIView):
+    """
+       Update candidate information.
+
+       Methods:
+           perform_update(self, serializer): Perform the update of candidate information by users.
+
+    """
+    queryset = CandidateModel.objects.all()
+    serializer_class = CandidateUserUpdateSerializer
+    parser_classes = (parsers.MultiPartParser,)
 
 
 class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
@@ -476,7 +486,7 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
        Update candidate information.
 
        Methods:
-           perform_update(self, serializer): Perform the update of candidate information.
+           perform_update(self, serializer): Perform the update of candidate information by his/her self candidate.
 
     """
     queryset = CandidateModel.objects.all()
@@ -503,18 +513,22 @@ class CandidateUpdateAPIView(generics.RetrieveUpdateAPIView):
         exist_appointment = AppointmentModel.objects.filter(candidate_id=candidate.id).first()
 
         resume = serializer.validated_data.get('resume')
+        avatar = serializer.validated_data.get('avatar')
 
         requirement = Requirement.objects.all()
         settings = InterviewSettingsModel.objects.filter(job__title__icontains=candidate.job).first()
         educations = candidate.educationmodel_set.all()
         experiences_count = candidate.experiencesmodel_set.count()
         current_date = timezone.now()
+        formatted_date = current_date.strftime('%Y-%m-%d %H.%M.%S')
 
         if resume:
-            jalali_update_date = jdatetime.fromgregorian(datetime=candidate.update_at)
-            formatted_update_date = jalali_update_date.strftime('%Y_%m_%d_%H.%M')
-            file_path = f"{candidate.job}/{candidate.name}_{formatted_update_date}.pdf"
+            file_path = f"{candidate.job}/{candidate.name}_{formatted_date}.pdf"
             candidate.resume.save(file_path, resume, save=True)
+
+        if avatar:
+            file_path = f"{candidate.name}_{formatted_date}.jpg"
+            candidate.avatar.save(file_path, avatar, save=True)
 
         if exist_appointment is None:
             if candidate.candidate_approval:

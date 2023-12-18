@@ -34,19 +34,25 @@ class ExperiencesModelSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class CandidateUserUpdateSerializer(serializers.ModelSerializer):
+    resume = serializers.FileField(required=False)
+    status = serializers.CharField(source='statusmodel.status', read_only=True)
+
+    class Meta:
+        model = CandidateModel
+        fields = '__all__'
+
+
 class CandidateUpdateSerializer(serializers.ModelSerializer):
     resume = serializers.FileField(required=False)
     status = serializers.CharField(source='statusmodel.status', read_only=True)
 
     class Meta:
         model = CandidateModel
-        fields = ['name', 'job', 'email', 'phone_number',
-                  'province', 'location', 'marital', 'update_at',
-                  'birthdate', 'gender', 'resume', 'candidate_approval', 'status',
-                  'languages', 'skills', 'about']
+        fields = '__all__'
         read_only_fields = ['name', 'job', 'email', 'phone_number',
                             'province', 'location', 'marital', 'update_at',
-                            'birthdate', 'gender', 'status']
+                            'birthdate', 'gender', 'status', 'request_date', 'last_company']
 
 
 class PDFScoreSerializer(serializers.ModelSerializer):

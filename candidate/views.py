@@ -133,6 +133,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
     # permission_classes = [IsSuperuserOrHR]
     parser_classes = (parsers.MultiPartParser,)
 
+    @exception_handler
     def save_education(self, soup, candidate_id, education_to_save):
         for education in soup.select(
                 'div.card-header:-soup-contains("تحصیلی") + div.card-body div.list-group-item label.d-block'):
@@ -150,6 +151,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
                 None
             education_to_save.append(new_education)
 
+    @exception_handler
     def save_preferences(self, soup, candidate_id, preferences_to_save):
         """
             Save preference information from the parsed HTML soup.
@@ -180,6 +182,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
         )
         preferences_to_save.append(new_preference)
 
+    @exception_handler
     def save_experiences(self, soup, candidate_id, experiences_to_save):
 
         for experience in soup.select(
@@ -205,6 +208,7 @@ class UploadExcelAPIView(generics.CreateAPIView):
             )
             experiences_to_save.append(new_experience)
 
+    @exception_handler
     def extract_image(self, soup, name):
         image_element = soup.select('div.candidate-box-avatar img')
         if image_element:
@@ -212,20 +216,24 @@ class UploadExcelAPIView(generics.CreateAPIView):
             image_content = requests.get(image_url).content
             return ContentFile(image_content, name=f'{name}.jpg')
 
+    @exception_handler
     def extract_languages(self, soup):
         language_element = soup.select('div.card-header:-soup-contains("زبان") + div.card-body div.list-group-item')
         return [re.sub(r'\s+', ' ', language.find('label').get_text()) for language in
                 language_element] if language_element else None
 
+    @exception_handler
     def extract_skills(self, soup):
         skill_element = soup.select(
             'div.card-header:-soup-contains("حرفه") + div.card-body div.font-size-2xl.vertical-align-middle.color-grey-light-1 label.font-size-base.color-grey-dark-2.mh-1')
         return [skill.get_text(strip=True) for skill in skill_element] if skill_element else None
 
+    @exception_handler
     def extract_data(self, soup, label_text):
         label = soup.find('label', text=re.compile(label_text))
         return re.sub(r'\s+', ' ', label.find_next_sibling('span').get_text(strip=True)) if label else None
 
+    @exception_handler
     def process_row(self, row, file_path, user_email, candidates_to_create, experiences_to_save, preferences_to_save,
                     education_to_save):
         hyperlink = row[6].hyperlink

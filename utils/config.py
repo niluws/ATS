@@ -89,5 +89,3 @@ SWAGGER_SETTINGS = {
         }
     }
 }
-#celery
-CELERY_RESULT_BACKEND = BROKER_URL
